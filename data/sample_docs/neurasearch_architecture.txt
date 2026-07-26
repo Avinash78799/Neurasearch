@@ -1,0 +1,44 @@
+========================================================================
+NeuraSearch: An Agentic Self-Correcting RAG System
+Technical Architecture and Specification Document
+========================================================================
+
+1. INTRODUCTION
+---------------
+Retrieval-Augmented Generation (RAG) is a powerful pattern for grounding Large Language Model (LLM) responses in external documents. However, naive RAG pipelines suffer from "silent failures" where irrelevant documents are retrieved, leading the LLM to generate plausible-sounding but completely hallucinated answers. 
+
+NeuraSearch addresses this vulnerability by implementing an Agentic Corrective RAG (CRAG) architecture using LangGraph. The system features self-correcting feedback loops, multi-modal retrieval strategies, query enhancement, and real-time validation to ensure high precision and factual grounding.
+
+2. RETRIEVAL PIPELINE AND ENHANCEMENTS
+--------------------------------------
+NeuraSearch utilizes two key pre-retrieval and retrieval modifications to maximize search relevance:
+
+A. Hypothetical Document Embeddings (HyDE)
+When a user asks a question (e.g., "How does NeuraSearch check for hallucinations?"), the system first asks Llama 3.1 to write a brief, hypothetical ideal answer. This hypothetical answer is embedded using the `nomic-embed-text` model instead of the raw question. This bridges the semantic gap between questions (how users ask) and answers (how documents are written).
+
+B. Hybrid Search and Reciprocal Rank Fusion (RRF)
+Naive vector search excels at capturing semantic intent but can miss exact keyword matches like part numbers or specific terms. NeuraSearch runs two search streams in parallel:
+- Dense Vector Search: Queries ChromaDB using the HyDE embedding.
+- Sparse Keyword Search: Queries a BM25 index built over the text corpus.
+The results from both streams are merged using Reciprocal Rank Fusion (RRF) with a standard smoothing constant of k=60. The merged documents are sorted by their fused scores to yield the top-k most relevant chunks.
+
+3. THE SELF-CORRECTION PROTOCOL (7-NODE GRAPH)
+----------------------------------------------
+The core of NeuraSearch is a stateful LangGraph pipeline comprising seven nodes:
+
+1. HyDE Node: Generates the hypothetical answer and computes its vector embedding.
+2. Hybrid Retriever Node: Performs parallel vector and BM25 searches and fuses them.
+3. Document Grader Node: Evaluates each retrieved chunk using LLM-based grading. Chunks are graded as "relevant" or "irrelevant" in parallel using asyncio.gather. If 80% or more are relevant, retrieval is marked as "good". If 30% to 79% are relevant, it is marked as "partial". If less than 30% are relevant, it is marked as "bad".
+4. Query Rewriter Node: If retrieval is "partial", the LLM reformulates the original query to make it more specific. The system then runs retrieval a second time (capped at 1 rewrite to prevent infinite loops).
+5. Web Search Node: If retrieval is "bad", the system bypasses the local documents and queries the open web via the Tavily Search API.
+6. Generator Node: Synthesizes the final answer using only the chunks graded as relevant (from local documents or web search) and appends source citations.
+7. Hallucination Grader Node: Verifies if every statement in the generated answer is grounded in the source context. If a hallucination is detected, the graph loops back to the Generator to regenerate the answer (up to 2 times). If hallucinations persist, it appends a warning badge to the answer.
+
+4. REAL-TIME RAGAS EVALUATION
+-----------------------------
+To measure system performance, NeuraSearch runs local evaluation using the RAGAS framework:
+- Faithfulness: Measures if the generated response is strictly grounded in the retrieved context (no hallucinations).
+- Answer Relevancy: Checks if the response addresses the user's initial question directly.
+- Context Recall: Evaluates if all ground-truth details are captured in the retrieved context.
+- Context Precision: Measures the signal-to-noise ratio by verifying if the relevant chunks are ranked high in the context list.
+These metrics are plotted on an interactive dashboard in the frontend UI.

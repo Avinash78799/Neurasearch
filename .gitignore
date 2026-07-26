@@ -1,0 +1,49 @@
+# ── Dependencies & Virtual Envs ────────────────────────────────────
+backend/.venv/
+.venv/
+venv/
+node_modules/
+frontend/node_modules/
+
+# ── Build Outputs ──────────────────────────────────────────────────
+dist/
+frontend/dist/
+*.egg-info/
+.build/
+
+# ── Environment & Secrets ──────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── Databases & Vector Stores ──────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite3
+chroma_db/
+backend/chroma_db/
+*.pkl
+backend/*.pkl
+
+# ── Backups & Transfers ────────────────────────────────────────────
+backups/
+test_transfer.json
+*.tar.gz
+
+# ── Python Cache ───────────────────────────────────────────────────
+__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+
+# ── OS & IDE ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

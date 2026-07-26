@@ -1,0 +1,14 @@
+[
+  {
+    "user_input": "What is NeuraSearch?",
+    "reference": "NeuraSearch is a local self-correcting AI research assistant that runs 100% locally using Llama 3.3 and LangGraph."
+  },
+  {
+    "user_input": "How does HyDE improve retrieval?",
+    "reference": "HyDE generates a hypothetical ideal answer first, then embeds that answer and uses it for similarity search instead of the raw question."
+  },
+  {
+    "user_input": "What is hybrid retrieval?",
+    "reference": "Hybrid retrieval runs vector similarity search and BM25 keyword search in parallel, then merges the results using Reciprocal Rank Fusion."
+  }
+]
