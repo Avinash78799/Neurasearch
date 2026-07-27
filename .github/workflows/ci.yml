@@ -27,7 +27,7 @@ jobs:
         python -m unittest discover -s tests -p 'test_*.py'
       env:
         PYTHONPATH: "backend:."
-        SQLITE_DB_PATH: ":memory:"
+        SQLITE_DB_PATH: "./test_ci_neurasearch.db"
         CHROMA_PATH: "./chroma_db"
         BM25_INDEX_PATH: "./bm25_index.pkl"
 
