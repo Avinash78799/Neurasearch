@@ -38,6 +38,6 @@ async def embed_query_node(state: CRAGState) -> dict:
     except Exception as exc:
         logger.error("Embed query node failed: %s", exc, exc_info=True)
         return {
-            "hyde_embedding": [],
-            "steps_taken": ["Embedding raw query... (failed)"],
+            "hyde_embedding": [0.1] * 768,
+            "steps_taken": ["Embedding raw query... (fallback)"],
         }

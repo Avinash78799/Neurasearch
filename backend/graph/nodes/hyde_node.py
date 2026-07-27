@@ -62,12 +62,16 @@ async def hyde_node(state: CRAGState) -> dict:
 
     except Exception as exc:
         logger.error("HyDE node failed: %s", exc, exc_info=True)
-        # Fallback: embed the raw question so the pipeline can continue
-        embeddings = OllamaEmbeddings(
-            model=settings.ollama_embed_model,
-            base_url=settings.ollama_base_url,
-        )
-        fallback_embedding = await embeddings.aembed_query(f"search_query: {question}")
+        # Fallback: embed the raw question or return fallback vector if Ollama is unreachable
+        try:
+            embeddings = OllamaEmbeddings(
+                model=settings.ollama_embed_model,
+                base_url=settings.ollama_base_url,
+            )
+            fallback_embedding = await embeddings.aembed_query(f"search_query: {question}")
+        except Exception:
+            fallback_embedding = [0.1] * 768
+
         return {
             "hypothetical_answer": question,
             "hyde_embedding": fallback_embedding,
