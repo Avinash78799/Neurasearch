@@ -185,12 +185,12 @@ async def generate_insights_task(source: str, workspace_id: str):
         db.save_insights(
             doc_id=str(uuid.uuid4()),
             source=source,
-            summary=insights["summary"],
-            topics=insights["topics"],
-            entities=insights["entities"],
-            word_count=insights["word_count"],
-            chunk_count=insights["chunk_count"],
-            reading_time=insights["reading_time"],
+            summary=insights.get("summary", "Document Summary"),
+            topics=insights.get("topics", ["Research Document"]),
+            entities=insights.get("entities", []),
+            word_count=insights.get("word_count", 0),
+            chunk_count=insights.get("chunk_count", 1),
+            reading_time=insights.get("reading_time", insights.get("reading_time_min", 1)),
             context=workspace_id
         )
         logger.info("Successfully generated and saved insights for %s", source)

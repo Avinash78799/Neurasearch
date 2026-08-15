@@ -132,6 +132,7 @@ async def generate_insights(content: str) -> dict:
         "entities": entities,
         "word_count": word_count,
         "chunk_count": chunk_count,
+        "reading_time": reading_time,
         "reading_time_min": reading_time,
     }
 
