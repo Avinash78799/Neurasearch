@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, AlertTriangle, FileText, Clipboard, Check, BookOpen, Download, ArrowRight } from "lucide-react";
+import { Sparkles, AlertTriangle, FileText, Clipboard, Check, BookOpen, Download, ArrowRight, Share2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -72,8 +72,8 @@ export default function AnswerCard({
             language={match[1]}
             PreTag="div"
             customStyle={{
-              background: "rgba(18, 12, 36, 0.85)",
-              border: "1px solid rgba(216, 180, 254, 0.15)",
+              background: "#27303E",
+              border: "1px solid rgba(220, 226, 240, 0.15)",
               borderRadius: "12px",
               padding: "16px",
               fontSize: "12px",
@@ -84,7 +84,7 @@ export default function AnswerCard({
           </SyntaxHighlighter>
         </div>
       ) : (
-        <code className="bg-lavender-400/15 border border-lavender-300/30 px-1.5 py-0.5 rounded text-lavender-200 font-mono text-xs" {...props}>
+        <code className="bg-[#303B4B] border border-[rgba(220,226,240,0.15)] px-1.5 py-0.5 rounded text-[#DCE2F0] font-mono text-xs" {...props}>
           {children}
         </code>
       );
@@ -92,114 +92,126 @@ export default function AnswerCard({
   };
 
   return (
-    <div className={`glass rounded-2xl border transition-all duration-300 ${isHallucination ? "border-rose-500/30 shadow-lg shadow-rose-500/10" : "border-lavender-300/20 shadow-xl shadow-lavender-500/5"}`}>
+    <div className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-2xl bg-[#3D4A5E] ${isHallucination ? "border-rose-400" : "border-[rgba(220,226,240,0.2)]"}`}>
       {/* Hallucination Warning Banner */}
       {isHallucination && (
-        <div className="flex items-center gap-3 px-6 py-3.5 bg-neon-rose/10 border-b border-neon-rose/20 animate-fade-in">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-neon-rose/20 flex items-center justify-center">
-            <AlertTriangle className="w-4 h-4 text-neon-rose" />
+        <div className="flex items-center gap-3 px-6 py-3.5 bg-rose-500/20 border-b border-rose-500/30 animate-fade-in text-white">
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-rose-500 flex items-center justify-center text-white">
+            <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-neon-rose uppercase tracking-wider">Hallucination Warning</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider">Hallucination Warning</p>
+            <p className="text-[11px] text-[#C5D0E0] mt-0.5">
               The answer contains claims that may not be grounded in the retrieved documents. Verify critical facts.
             </p>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-lavender-300/10 bg-white/[0.01] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-lavender-400/30 to-lavender-300/20 flex items-center justify-center border border-lavender-300/30 shadow-sm">
-            <Sparkles className="w-4 h-4 text-lavender-300" />
+      {/* Main Composition Top Section */}
+      <div className="p-6 space-y-4">
+        {/* Header with Title and Actions */}
+        <div className="flex items-center justify-between pb-3 border-b border-[rgba(220,226,240,0.12)]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#DCE2F0] flex items-center justify-center text-[#1C2430] shadow-md">
+              <Sparkles className="w-4.5 h-4.5 text-[#1C2430]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
+                {question || "Research Synthesis"}
+              </h2>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#BAC7DB]">
+                GROUNDED AI REPORT
+              </span>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xs font-bold text-lavender-300 uppercase tracking-widest">NeuraSearch Research Synthesis</h3>
-            <p className="text-[10px] text-[var(--text-muted)]">Perplexity-Grade Grounded Intelligence</p>
-          </div>
+
+          {/* Action Pills (#DCE2F0 Button from image) */}
+          {answer && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#DCE2F0] hover:bg-[#C7D1E8] text-[#1C2430] font-semibold text-xs transition-all shadow-sm active:scale-95"
+                title="Copy answer"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Clipboard className="w-3.5 h-3.5 text-[#1C2430]" />}
+                <span>{copied ? "Copied" : "Copy"}</span>
+              </button>
+
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#343F50] hover:bg-[#2B3442] text-[#DCE2F0] border border-[rgba(220,226,240,0.2)] font-semibold text-xs transition-all shadow-sm active:scale-95"
+                title="Export report"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
+
+              {onSaveToKnowledge && (
+                <button
+                  onClick={() => onSaveToKnowledge(question || "Smart Q&A Query", answer)}
+                  className="p-1.5 rounded-full bg-[#343F50] hover:bg-[#DCE2F0] text-[#DCE2F0] hover:text-[#1C2430] border border-[rgba(220,226,240,0.2)] transition-all"
+                  title="Save to Knowledge Hub"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Header Actions */}
-        {answer && (
-          <div className="flex items-center gap-2">
-            {onSaveToKnowledge && (
-              <button
-                onClick={() => onSaveToKnowledge(question || "Smart Q&A Query", answer)}
-                className="p-2 rounded-lg bg-white/[0.02] border border-lavender-300/20 text-lavender-300 hover:text-white hover:bg-lavender-500/20 hover:border-lavender-400 transition-all duration-200"
-                title="Save as AI Note to Knowledge Core"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              onClick={handleDownload}
-              className="p-2 rounded-lg bg-white/[0.02] border border-lavender-300/20 text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.06] transition-all duration-200"
-              title="Download Research Report (.md)"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleCopy}
-              className="p-2 rounded-lg bg-white/[0.02] border border-lavender-300/20 text-[var(--text-secondary)] hover:text-white hover:bg-white/[0.06] transition-all duration-200"
-              title="Copy answer to clipboard"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-neon-emerald" />
-              ) : (
-                <Clipboard className="w-3.5 h-3.5" />
-              )}
-            </button>
+        {/* Markdown Body Text */}
+        <div className="prose-neura text-sm leading-relaxed text-[#FFFFFF]">
+          <ReactMarkdown components={markdownComponents}>
+            {cleanAnswer || ""}
+          </ReactMarkdown>
+        </div>
+
+        {/* Suggested Follow-ups */}
+        {followUps && followUps.length > 0 && (
+          <div className="pt-3 border-t border-[rgba(220,226,240,0.12)] space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#BAC7DB] block">
+              Suggested Inquiries
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {followUps.map((fu, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onAskFollowUp && onAskFollowUp(fu)}
+                  className="group flex items-center justify-between text-left px-3 py-2 rounded-xl bg-[#343F50] hover:bg-[#2B3442] border border-[rgba(220,226,240,0.15)] text-xs text-[#C5D0E0] hover:text-white transition-all shadow-sm"
+                >
+                  <span className="truncate">{fu}</span>
+                  <ArrowRight className="w-3 h-3 text-[#BAC7DB] group-hover:text-white group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Body — rendered markdown with syntax highlighting */}
-      <div className="px-6 py-5 prose-neura text-sm leading-relaxed text-[var(--text-primary)]">
-        <ReactMarkdown components={markdownComponents}>
-          {cleanAnswer || ""}
-        </ReactMarkdown>
-      </div>
-
-      {/* Interactive Perplexity-Style Follow-Up Inquiries */}
-      {followUps && followUps.length > 0 && (
-        <div className="px-6 py-4 border-t border-lavender-300/10 bg-lavender-500/[0.03]">
-          <div className="flex items-center gap-2 mb-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-lavender-400" />
-            <p className="text-[11px] font-bold text-lavender-300 uppercase tracking-wider">Suggested Inquiries</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            {followUps.map((fu, idx) => (
-              <button
-                key={idx}
-                onClick={() => onAskFollowUp && onAskFollowUp(fu)}
-                className="group flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-lavender-300/15 hover:border-lavender-300/40 hover:bg-lavender-500/10 transition-all duration-200 shadow-sm"
-              >
-                <span className="text-xs text-[var(--text-secondary)] group-hover:text-white transition-colors">
-                  {fu}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-lavender-300 group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Footer — source citations */}
+      {/* Secondary Panel using #DCE2F0 from Image for Source Citations */}
       {sources && sources.length > 0 && (
-        <div className="px-6 py-4 border-t border-lavender-300/10 bg-white/[0.01]">
-          <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2.5">Sources Cited</p>
-          <div className="flex flex-wrap gap-2">
-            {sources.map((src, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-lavender-300/15 text-xs text-[var(--text-secondary)] hover:border-lavender-400/40 hover:text-white transition-all duration-200 cursor-default"
-              >
-                <FileText className="w-3.5 h-3.5 text-lavender-400" />
-                {src}
-              </span>
-            ))}
+        <div className="px-6 py-3.5 bg-[#DCE2F0] text-[#1C2430] border-t border-[rgba(0,0,0,0.06)] flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#1C2430]">
+              Sources Cited ({sources.length}):
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {sources.map((src, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-[#1C2430] text-[11px] font-medium shadow-xs border border-black/5"
+                >
+                  <FileText className="w-3 h-3 text-[#1C2430]" />
+                  {src}
+                </span>
+              ))}
+            </div>
           </div>
+
+          <span className="text-[10px] font-mono text-[#364559]">
+            #DCE2F0 Grounded Panel
+          </span>
         </div>
       )}
     </div>

@@ -4,38 +4,49 @@ export default {
   theme: {
     extend: {
       colors: {
-        crimsonBlack: {
-          950: "#09070a",
-          900: "#120c13",
-          850: "#170f1a",
-          800: "#1e1421",
-          700: "#291b2e",
-          600: "#3d2844",
+        // Celadon Sage Background
+        sage: {
+          50: "#F4F7F2",
+          100: "#EBF0E6",
+          200: "#DEE7D7",
+          300: "#CCDBC2",
+          800: "#242E2B",
+          900: "#1A221F",
+          950: "#121816",
         },
-        turquoise: {
-          50: "#f0fdfa",
-          100: "#ccfbf1",
-          200: "#99f6e4",
-          300: "#5eead4",
-          400: "#2dd4bf",
-          500: "#14b8a6",
-          600: "#0d9488",
-          700: "#0f766e",
-          800: "#115e59",
-          900: "#134e4a",
+        // Slate Navy / Charcoal Indigo Container
+        slateNavy: {
+          400: "#54647C",
+          500: "#46546A",
+          600: "#3D4A5E", // Exact image primary card color
+          700: "#343F50",
+          800: "#2B3442",
+          900: "#202732",
+          950: "#161B23",
         },
-        brand: {
-          500: "#14b8a6",
-          600: "#0d9488",
-          700: "#0f766e",
+        // Ice Blue / Periwinkle Pill & Secondary Panel
+        iceBlue: {
+          50: "#F5F7FC",
+          100: "#EBF0FA",
+          200: "#DCE2F0", // Exact image secondary panel #DCE2F0
+          300: "#C7D1E8",
+          400: "#B0BFDE",
+          500: "#98ACD4",
+          600: "#7E94C2",
+        },
+        // Dark Slate text for on-ice-blue components
+        slateInk: {
+          900: "#1C2430",
+          800: "#263140",
+          700: "#364559",
         },
       },
       fontFamily: {
         inter: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       animation: {
-        "fade-in": "fadeIn 0.25s ease-out forwards",
-        "slide-up": "slideUp 0.3s ease-out forwards",
+        "fade-in": "fadeIn 0.2s ease-out forwards",
+        "slide-up": "slideUp 0.25s ease-out forwards",
       },
       keyframes: {
         fadeIn: {
@@ -43,7 +54,7 @@ export default {
           "100%": { opacity: "1" },
         },
         slideUp: {
-          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "0%": { opacity: "0", transform: "translateY(6px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },

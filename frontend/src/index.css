@@ -2,98 +2,88 @@
 
 /* ──────────────────────────── Theme Variables ──────────────────────────── */
 :root {
-  /* Reddish-Black Mix Fade with Turquoise Accents (Dark Mode) */
-  --bg-primary: #09070a;
-  --bg-secondary: #120c14;
-  --bg-surface: #18101a;
-  --bg-surface-hover: #221626;
-  --bg-card: #150e18;
-  --bg-input: #120b15;
+  /* Editorial Sage & Slate Navy (#3D4A5E) with Ice Blue (#DCE2F0) — Dark Mode */
+  --bg-primary: #18201D;
+  --bg-secondary: #222B28;
+  --bg-surface: #3D4A5E;
+  --bg-surface-hover: #48566D;
+  --bg-card: #3D4A5E;
+  --bg-input: #323E50;
   
-  --text-primary: #fdfafc;
-  --text-secondary: #d1bfc9;
-  --text-muted: #8d7584;
+  --text-primary: #FFFFFF;
+  --text-secondary: #C5D0E0;
+  --text-muted: #95A5BC;
   
-  --border-primary: rgba(244, 63, 94, 0.12);
-  --border-hover: rgba(20, 184, 166, 0.4);
+  --border-primary: rgba(220, 226, 240, 0.15);
+  --border-hover: #DCE2F0;
   
-  --accent-primary: #14b8a6;       /* Electric Turquoise */
-  --accent-hover: #0d9488;         /* Deep Turquoise */
-  --accent-soft: rgba(20, 184, 166, 0.12);
-  --accent-glow: rgba(20, 184, 166, 0.25);
+  --accent-primary: #DCE2F0;       /* Ice Blue Button & Accent */
+  --accent-text: #1C2430;          /* Dark Slate Ink for Ice Blue surfaces */
+  --accent-hover: #C7D1E8;
+  --accent-soft: rgba(220, 226, 240, 0.15);
   
-  --accent-crimson: #e11d48;       /* Crimson Red */
-  --accent-cyan: #06b6d4;          /* Cyan */
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
+  --panel-secondary: #DCE2F0;
+  --panel-secondary-text: #1C2430;
   
-  --shadow-primary: 0 8px 30px 0 rgba(0, 0, 0, 0.5);
-  --shadow-subtle: 0 2px 6px 0 rgba(0, 0, 0, 0.3);
+  --shadow-primary: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+  --shadow-subtle: 0 2px 8px 0 rgba(0, 0, 0, 0.25);
   
-  --scrollbar-track: #09070a;
-  --scrollbar-thumb: #291b2e;
+  --scrollbar-track: #18201D;
+  --scrollbar-thumb: #3D4A5E;
 }
 
 [data-theme='light'] {
-  /* Minimalist Rose-Slate & Deep Turquoise (Light Mode) */
-  --bg-primary: #fbf9fa;
-  --bg-secondary: #f4eef2;
-  --bg-surface: #ffffff;
-  --bg-surface-hover: #f9f5f8;
-  --bg-card: #ffffff;
-  --bg-input: #ffffff;
+  /* Editorial Sage (#EBF0E6) & Slate Navy (#3D4A5E) with Ice Blue (#DCE2F0) — Light Mode */
+  --bg-primary: #EBF0E6;          /* Soft Celadon Sage Canvas from image */
+  --bg-secondary: #DEE7D7;
+  --bg-surface: #3D4A5E;          /* Slate Navy Card from image */
+  --bg-surface-hover: #48566D;
+  --bg-card: #3D4A5E;
+  --bg-input: #323E50;
   
-  --text-primary: #170d18;
-  --text-secondary: #4d3a4b;
-  --text-muted: #786475;
+  --text-primary: #FFFFFF;
+  --text-secondary: #C5D0E0;
+  --text-muted: #95A5BC;
   
-  --border-primary: #e6dde3;
-  --border-hover: #14b8a6;
+  --border-primary: rgba(220, 226, 240, 0.18);
+  --border-hover: #DCE2F0;
   
-  --accent-primary: #0d9488;       /* Deep Turquoise */
-  --accent-hover: #0f766e;
-  --accent-soft: rgba(13, 148, 136, 0.08);
-  --accent-glow: rgba(13, 148, 136, 0.18);
+  --accent-primary: #DCE2F0;       /* #DCE2F0 Ice Blue Pill Button */
+  --accent-text: #1C2430;
+  --accent-hover: #C7D1E8;
+  --accent-soft: rgba(220, 226, 240, 0.2);
   
-  --accent-crimson: #e11d48;
-  --accent-cyan: #0284c7;
-  --accent-emerald: #059669;
-  --accent-amber: #d97706;
-  --accent-rose: #e11d48;
+  --panel-secondary: #DCE2F0;     /* Secondary panel using #DCE2F0 from image */
+  --panel-secondary-text: #1C2430;
   
-  --shadow-primary: 0 4px 20px 0 rgba(0, 0, 0, 0.06);
-  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  --shadow-primary: 0 12px 35px -8px rgba(35, 45, 58, 0.2);
+  --shadow-subtle: 0 2px 8px 0 rgba(35, 45, 58, 0.08);
   
-  --scrollbar-track: #fbf9fa;
-  --scrollbar-thumb: #d6cbd2;
+  --scrollbar-track: #EBF0E6;
+  --scrollbar-thumb: #CCDBC2;
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ──────────────────────────── Typography & Background ──────────────────────────── */
+/* ──────────────────────────── Typography & Global ──────────────────────────── */
 
 body {
   background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(225, 29, 72, 0.09) 0px, transparent 55%),
-    radial-gradient(at 100% 0%, rgba(20, 184, 166, 0.07) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(190, 18, 60, 0.06) 0px, transparent 55%);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.012em;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
@@ -103,85 +93,91 @@ body {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
+  background: #DCE2F0;
 }
 
-/* Structural Components */
+/* Structural Components Matching Image */
 @layer components {
   .glass {
-    background: var(--bg-surface);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: #3D4A5E;
     border: 1px solid var(--border-primary);
     box-shadow: var(--shadow-primary);
   }
 
   .glass-card {
-    background: var(--bg-card);
+    background: #3D4A5E;
     border: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-subtle);
+    box-shadow: var(--shadow-primary);
+    color: #FFFFFF;
   }
 
   .glass-card:hover {
-    border-color: var(--border-hover);
+    border-color: rgba(220, 226, 240, 0.35);
+  }
+
+  .secondary-panel {
+    background-color: #DCE2F0;
+    color: #1C2430;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
   }
 
   .glass-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border-primary);
-    color: var(--text-primary);
+    background: #323E50;
+    border: 1px solid rgba(220, 226, 240, 0.2);
+    color: #FFFFFF;
   }
 
   .glass-input:focus {
-    border-color: var(--accent-primary);
+    border-color: #DCE2F0;
     outline: none;
-    box-shadow: 0 0 0 1px var(--accent-primary);
+    box-shadow: 0 0 0 1px #DCE2F0;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
-    color: #ffffff;
-    font-weight: 500;
+  .btn-pill {
+    background-color: #DCE2F0;
+    color: #1C2430;
+    font-weight: 600;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 10px rgba(20, 184, 166, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   }
 
-  .btn-primary:hover {
-    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%);
-    box-shadow: 0 4px 14px rgba(20, 184, 166, 0.35);
+  .btn-pill:hover {
+    background-color: #C7D1E8;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   }
 
   .prose-neura {
-    color: var(--text-primary);
-    line-height: 1.7;
+    color: #FFFFFF;
+    line-height: 1.75;
   }
   
   .prose-neura p {
-    margin-bottom: 0.8em;
+    margin-bottom: 0.9em;
+    color: #C5D0E0;
   }
 
   .prose-neura strong {
-    color: var(--text-primary);
+    color: #FFFFFF;
     font-weight: 600;
   }
 
   .prose-neura code {
-    background: var(--bg-secondary);
-    color: var(--accent-primary);
-    padding: 0.12em 0.35em;
-    border-radius: 0.25rem;
+    background: #303B4B;
+    color: #DCE2F0;
+    padding: 0.15em 0.4em;
+    border-radius: 0.35rem;
     font-size: 0.85em;
-    border: 1px solid var(--border-primary);
+    border: 1px solid rgba(220, 226, 240, 0.15);
     font-family: 'JetBrains Mono', monospace;
   }
 
   .prose-neura pre {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: 0.5rem;
-    padding: 0.85rem;
+    background: #27303E;
+    border: 1px solid rgba(220, 226, 240, 0.15);
+    border-radius: 0.6rem;
+    padding: 1rem;
     overflow-x: auto;
-    margin: 0.85rem 0;
+    margin: 1rem 0;
   }
 
   .prose-neura table {
@@ -192,18 +188,18 @@ body {
   }
 
   .prose-neura th {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+    background: #303B4B;
+    color: #DCE2F0;
     font-weight: 600;
     padding: 0.65rem 0.85rem;
-    border: 1px solid var(--border-primary);
+    border: 1px solid rgba(220, 226, 240, 0.15);
     text-align: left;
   }
 
   .prose-neura td {
     padding: 0.65rem 0.85rem;
-    border: 1px solid var(--border-primary);
-    color: var(--text-primary);
+    border: 1px solid rgba(220, 226, 240, 0.12);
+    color: #C5D0E0;
   }
 }
 
