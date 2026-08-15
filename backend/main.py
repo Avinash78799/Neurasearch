@@ -321,6 +321,11 @@ class SettingsUpdateRequest(BaseModel):
     pro_mode: Optional[bool] = None
     enable_hallucination_check: Optional[bool] = None
     enable_hyde: Optional[bool] = None
+    llm_provider: Optional[str] = None
+    groq_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
+    ollama_llm_model: Optional[str] = None
 
 
 @v1_router.post("/ingest")
@@ -1114,7 +1119,7 @@ async def save_page_endpoint(req: SavePageRequest, context: WorkspaceContext = D
 # ── Settings & Usage Endpoints ───────────────────────────────────────
 @v1_router.get("/settings")
 async def get_settings_endpoint():
-    """Get active v2 configuration parameters."""
+    """Get active configuration parameters and model provider status."""
     return {
         "pro_mode": settings.pro_mode,
         "enable_hallucination_check": settings.enable_hallucination_check,
@@ -1122,18 +1127,39 @@ async def get_settings_endpoint():
         "llm_temperature": settings.llm_temperature,
         "max_documents_free": settings.max_documents_free,
         "edition": settings.edition,
+        "llm_provider": settings.llm_provider,
+        "ollama_llm_model": settings.ollama_llm_model,
+        "groq_model": settings.groq_model,
+        "openai_model": settings.openai_model,
+        "has_groq_key": bool(settings.groq_api_key),
+        "has_openai_key": bool(settings.openai_api_key),
+        "has_deepseek_key": bool(settings.deepseek_api_key),
     }
 
 
 @v1_router.put("/settings")
 async def update_settings_endpoint(req: SettingsUpdateRequest):
-    """Update configurable settings."""
+    """Update configurable settings and active model provider."""
     if req.pro_mode is not None:
         settings.pro_mode = req.pro_mode
     if req.enable_hallucination_check is not None:
         settings.enable_hallucination_check = req.enable_hallucination_check
     if req.enable_hyde is not None:
         settings.enable_hyde = req.enable_hyde
+    if req.llm_provider is not None:
+        settings.llm_provider = req.llm_provider.lower().strip()
+    if req.groq_api_key is not None:
+        settings.groq_api_key = req.groq_api_key.strip() or None
+    if req.openai_api_key is not None:
+        settings.openai_api_key = req.openai_api_key.strip() or None
+    if req.deepseek_api_key is not None:
+        settings.deepseek_api_key = req.deepseek_api_key.strip() or None
+    if req.ollama_llm_model is not None:
+        settings.ollama_llm_model = req.ollama_llm_model.strip()
+
+    # Reset model registry singleton to apply new provider settings
+    import core.model_registry
+    core.model_registry._llm = None
     
     return {
         "status": "success",
@@ -1141,6 +1167,10 @@ async def update_settings_endpoint(req: SettingsUpdateRequest):
             "pro_mode": settings.pro_mode,
             "enable_hallucination_check": settings.enable_hallucination_check,
             "enable_hyde": settings.enable_hyde,
+            "llm_provider": settings.llm_provider,
+            "ollama_llm_model": settings.ollama_llm_model,
+            "has_groq_key": bool(settings.groq_api_key),
+            "has_openai_key": bool(settings.openai_api_key),
         }
     }
 

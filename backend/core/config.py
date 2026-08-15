@@ -12,18 +12,52 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # ── Ollama ─────────────────────────────────────────────────────
+    # ── AI Model Provider Settings ─────────────────────────────────
+    llm_provider: str = Field(
+        default="ollama",
+        description="Active LLM provider: 'ollama', 'groq', 'openai', 'deepseek', 'openrouter'"
+    )
+
+    # ── Ollama (Local) ─────────────────────────────────────────────
     ollama_base_url: str = Field(
         default="http://127.0.0.1:11434",
         description="Ollama server URL"
     )
     ollama_llm_model: str = Field(
-        default="llama3.1",
+        default="llama3.2:3b",
         description="Ollama LLM model for generation and grading"
     )
     ollama_embed_model: str = Field(
         default="nomic-embed-text",
         description="Ollama embedding model"
+    )
+
+    # ── Groq (Ultra-Fast Free Tier Cloud Inference: Llama 3.3 70B) ─
+    groq_api_key: Optional[str] = Field(
+        default=None,
+        description="GroqCloud API Key (free tier: https://console.groq.com)"
+    )
+    groq_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        description="Groq LLM model name"
+    )
+
+    # ── OpenAI & OpenRouter & DeepSeek ─────────────────────────────
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        description="OpenAI or OpenRouter API key"
+    )
+    openai_model: str = Field(
+        default="gpt-4o-mini",
+        description="OpenAI model name"
+    )
+    deepseek_api_key: Optional[str] = Field(
+        default=None,
+        description="DeepSeek API key"
+    )
+    deepseek_model: str = Field(
+        default="deepseek-chat",
+        description="DeepSeek model name"
     )
 
     # ── ChromaDB ───────────────────────────────────────────────────

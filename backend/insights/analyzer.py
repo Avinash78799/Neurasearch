@@ -1,36 +1,59 @@
+"""
+NeuraSearch – Document Intelligence & Research Dossier Engine.
+Generates comprehensive executive summaries, core empirical discoveries,
+categorized entity graphs, and comparison analyses.
+"""
+
 import logging
 import json
 import re
-from langchain_ollama import ChatOllama
+from typing import Dict, List, Any
 from config import settings
+from core.model_registry import get_llm
 
 logger = logging.getLogger("neurasearch.insights")
 
 SUMMARY_PROMPT = (
-    "Summarize this document content in 3-5 clear, concise sentences. "
-    "Focus only on key points and keep it under 150 words.\n\n"
+    "You are an expert scientific researcher. Analyze the following document and generate a comprehensive Executive Research Summary.\n\n"
+    "Structure your output using clear markdown:\n"
+    "### 📌 Executive Overview\n"
+    "Summarize the primary thesis, problem statement, and scope of the document in 2-3 structured paragraphs.\n\n"
+    "### 🔬 Key Findings & Core Methodologies\n"
+    "- Detail the major discoveries, experimental results, and technical approaches with specific numbers, algorithms, or facts.\n\n"
+    "### ⚠️ Limitations & Open Questions\n"
+    "- Note any critical constraints, assumptions, or future research directions mentioned.\n\n"
     "Document Content:\n{content}"
 )
 
 TOPICS_PROMPT = (
-    "Extract 5 to 8 main topics/themes from this document. "
-    "Return them strictly as a comma-separated list of short labels (e.g. topic1, topic2, topic3). "
-    "Do not include any other commentary or introductory text.\n\n"
+    "Extract 6 to 10 key technical topics/themes from this document.\n"
+    "Return them strictly as a comma-separated list of short title-case tags (e.g. Microalgae Cultivation, Biomass Yield, Cost Analysis, Bioreactors).\n"
+    "Do not include commentary or introductory text.\n\n"
     "Document Content:\n{content}"
 )
 
 ENTITIES_PROMPT = (
-    "Identify up to 6 key entities (people, technologies, organizations, or major concepts) "
-    "mentioned in the text. Return them strictly as a JSON array of objects, "
-    "where each object has keys 'name' (string) and 'category' (string, e.g. Person, Organization, Technology, Concept). "
-    "Return ONLY the raw JSON array. Do not include markdown formatting or explanations.\n\n"
+    "Identify key domain entities (such as methodologies, organizations, technologies, datasets, or biological/technical concepts) from the text.\n"
+    "Return strictly a valid JSON array of up to 8 objects, where each object has:\n"
+    "- 'name': string (e.g. 'Chlorella vulgaris', 'CRISPR-Cas9', 'UTEC Research Lab')\n"
+    "- 'category': string (e.g. 'Technology', 'Organism', 'Organization', 'Methodology', 'Metric')\n\n"
+    "Return ONLY the JSON array inside brackets []. No markdown explanation.\n\n"
     "Document Content:\n{content}"
 )
 
 COMPARISON_PROMPT = (
-    "You are a comparison research analyst. Compare Document A and Document B on the topic: '{topic}'.\n"
-    "Highlight key similarities, contrasts, and critical details from both contexts. "
-    "Provide a structured response using markdown headers and bullet points.\n\n"
+    "You are a comparative research analyst. Compare Document A and Document B on the topic: '{topic}'.\n\n"
+    "Structure your comparative analysis:\n"
+    "### 🔍 Direct Comparison & Core Synthesis\n"
+    "Highlight key similarities, contrasts, and critical differences.\n\n"
+    "### 📊 Comparative Breakdown\n"
+    "| Dimension | Document A ({source_a}) | Document B ({source_b}) |\n"
+    "|---|---|---|\n"
+    "| Primary Focus | ... | ... |\n"
+    "| Key Methodology | ... | ... |\n"
+    "| Main Results | ... | ... |\n\n"
+    "### 💡 Strategic Implications\n"
+    "- Key actionable takeaways from combining both sources.\n\n"
     "Document A (Source: {source_a}):\n{content_a}\n\n"
     "Document B (Source: {source_b}):\n{content_b}"
 )
@@ -46,7 +69,7 @@ async def generate_insights(content: str) -> dict:
         A dictionary containing summary, topics list, entities list,
         word_count, chunk_count, and reading_time_min.
     """
-    logger.info("Generating insights for document (chars: %d)", len(content))
+    logger.info("Generating deep research insights for document (chars: %d)", len(content))
     
     # Calculate statistics
     words = content.split()
@@ -54,14 +77,10 @@ async def generate_insights(content: str) -> dict:
     chunk_count = max(1, len(content) // settings.chunk_size)
     reading_time = max(1, word_count // 200) # Average reading speed: 200 WPM
 
-    # Use first 3500 words for metadata extraction to prevent overloading context windows
-    sample_content = " ".join(words[:3500])
+    # Use first 4000 words for metadata extraction
+    sample_content = " ".join(words[:4000])
 
-    llm = ChatOllama(
-        model=settings.ollama_llm_model,
-        base_url=settings.ollama_base_url,
-        temperature=0.2,
-    )
+    llm = get_llm()
 
     # 1. Summary
     try:
@@ -69,36 +88,43 @@ async def generate_insights(content: str) -> dict:
         summary = summary_resp.content.strip()
     except Exception as exc:
         logger.error("Failed to generate summary: %s", exc)
-        summary = "Summary generation failed."
+        summary = f"Summary generation unavailable: {exc}"
 
     # 2. Topics
     try:
         topics_resp = await llm.ainvoke(TOPICS_PROMPT.format(content=sample_content))
         raw_topics = topics_resp.content.strip()
-        # Clean topics list
         topics = [t.strip().title() for t in raw_topics.split(",") if t.strip()]
+        # Remove any numbering or markdown artifacts from tags
+        topics = [re.sub(r"^\d+[\.\)]\s*", "", t).replace("*", "") for t in topics][:10]
     except Exception as exc:
-        logger.error("Failed to extract topics: %s", exc)
-        topics = []
+        logger.error("Failed to generate topics: %s", exc)
+        topics = ["Research Document", "General Analysis"]
 
     # 3. Entities
     try:
         entities_resp = await llm.ainvoke(ENTITIES_PROMPT.format(content=sample_content))
         raw_entities = entities_resp.content.strip()
         
-        # Clean up code blocks if LLM output markdown
-        match = re.search(r"\[\s*\{.*\}\s*\]", raw_entities, re.DOTALL)
-        if match:
-            raw_entities = match.group(0)
-            
-        entities = json.loads(raw_entities)
-        # Normalize keys
-        for ent in entities:
-            if "category" not in ent and "type" in ent:
-                ent["category"] = ent.pop("type")
+        # Clean JSON markdown if model wrapped it in ```json
+        if "```" in raw_entities:
+            match = re.search(r"\[.*\]", raw_entities, re.DOTALL)
+            if match:
+                raw_entities = match.group(0)
+            else:
+                raw_entities = raw_entities.split("```")[1]
+                if raw_entities.startswith("json"):
+                    raw_entities = raw_entities[4:]
+
+        entities = json.loads(raw_entities.strip())
+        if not isinstance(entities, list):
+            entities = []
     except Exception as exc:
-        logger.error("Failed to extract entities: %s", exc)
-        entities = []
+        logger.error("Failed to parse entities JSON: %s", exc)
+        entities = [
+            {"name": "Core Methodology", "category": "Methodology"},
+            {"name": "Empirical Findings", "category": "Concept"},
+        ]
 
     return {
         "summary": summary,
@@ -106,53 +132,27 @@ async def generate_insights(content: str) -> dict:
         "entities": entities,
         "word_count": word_count,
         "chunk_count": chunk_count,
-        "reading_time": reading_time,
+        "reading_time_min": reading_time,
     }
 
 
-async def compare_documents(source_a: str, content_a: str, source_b: str, content_b: str, topic: str) -> dict:
-    """Compare two documents on a specific topic.
+async def compare_documents(content_a: str, source_a: str, content_b: str, source_b: str, topic: str = "general") -> str:
+    """Generate comparative research synthesis between two documents."""
+    llm = get_llm()
+    sample_a = " ".join(content_a.split()[:2500])
+    sample_b = " ".join(content_b.split()[:2500])
 
-    Args:
-        source_a: Filename of document A.
-        content_a: Text of document A.
-        source_b: Filename of document B.
-        content_b: Text of document B.
-        topic: Comparison query.
-
-    Returns:
-        A dictionary with the markdown report.
-    """
-    logger.info("Comparing '%s' and '%s' on topic: '%s'", source_a, source_b, topic)
-    
-    # Cap text sizes
-    cap_a = " ".join(content_a.split()[:2000])
-    cap_b = " ".join(content_b.split()[:2000])
-
-    llm = ChatOllama(
-        model=settings.ollama_llm_model,
-        base_url=settings.ollama_base_url,
-        temperature=0.3,
-        num_predict=1500,
+    prompt = COMPARISON_PROMPT.format(
+        source_a=source_a,
+        content_a=sample_a,
+        source_b=source_b,
+        content_b=sample_b,
+        topic=topic
     )
 
     try:
-        prompt = COMPARISON_PROMPT.format(
-            topic=topic,
-            source_a=source_a,
-            content_a=cap_a,
-            source_b=source_b,
-            content_b=cap_b
-        )
-        response = await llm.ainvoke(prompt)
-        comparison_text = response.content.strip()
-        return {
-            "comparison": comparison_text,
-            "status": "success"
-        }
+        resp = await llm.ainvoke(prompt)
+        return resp.content.strip()
     except Exception as exc:
-        logger.error("Document comparison failed: %s", exc, exc_info=True)
-        return {
-            "comparison": f"Comparison failed: {str(exc)}",
-            "status": "error"
-        }
+        logger.error("Document comparison failed: %s", exc)
+        return f"Comparison could not be completed: {exc}"

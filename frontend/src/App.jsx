@@ -598,6 +598,7 @@ export default function App() {
                     sources={result.sources}
                     hallucination_check={result.hallucination_check}
                     onSaveToKnowledge={(q, ans) => triggerNoteDraft("/api/v1/knowledge/generate/chat", { question: q, answer: ans }, { created_from: "ai_note" })}
+                    onAskFollowUp={(followUpQuery) => handleSubmitQuery(followUpQuery)}
                   />
 
                   <EvalDashboard
