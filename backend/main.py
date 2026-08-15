@@ -97,7 +97,7 @@ async def neurasearch_error_handler(request: Request, exc: NeuraSearchError):
 async def jwt_auth_middleware(request: Request, call_next):
     # Exclude public paths
     path = request.url.path
-    if path in ["/token", "/health", "/"] or path.startswith("/docs") or path.startswith("/openapi.json"):
+    if path in ["/token", "/health", "/"] or path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/api/v1/hardware"):
         return await call_next(request)
         
     # OPTIONS requests (preflight CORS) should skip auth
