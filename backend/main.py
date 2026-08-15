@@ -1110,10 +1110,51 @@ async def save_page_endpoint(req: SavePageRequest, context: WorkspaceContext = D
     from highlight_service import HighlightService
     return HighlightService.save_to_page(
         workspace_id=context.workspace_id,
-        highlight_text=req.highlight_text,
         page_id=req.page_id,
         context=context
     )
+
+
+class GitHubImportRequest(BaseModel):
+    repo: str
+    token: Optional[str] = None
+    max_files: Optional[int] = 30
+
+
+@v1_router.post("/github/import")
+async def import_github_repo_endpoint(req: GitHubImportRequest, context: WorkspaceContext = Depends(get_workspace_context)):
+    """Import a GitHub repository's files into the active workspace index."""
+    from rag.github_connector import GitHubConnector
+    try:
+        result = await GitHubConnector.import_repository(
+            repo_input=req.repo,
+            context=context,
+            token=req.token,
+            max_files=req.max_files or 30
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error("GitHub import failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to import GitHub repo: {str(e)}")
+
+
+@v1_router.get("/github/issues")
+async def get_github_issues_endpoint(repo: str, token: Optional[str] = None, state: str = "open", limit: int = 15):
+    """Fetch issues and pull requests from a GitHub repository for research triage."""
+    from rag.github_connector import GitHubConnector
+    try:
+        issues = await GitHubConnector.fetch_issues_and_prs(
+            repo_input=repo,
+            token=token,
+            state=state,
+            limit=limit
+        )
+        return {"repo": repo, "issues": issues}
+    except Exception as e:
+        logger.error("GitHub issues fetch failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch GitHub issues: {str(e)}")
 
 
 # ── Settings & Usage Endpoints ───────────────────────────────────────

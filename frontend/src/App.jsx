@@ -22,11 +22,30 @@ import AINoteDraftModal from "./components/AINoteDraftModal";
 import UniversalSearch from "./components/UniversalSearch";
 import ReadingWorkspace from "./components/ReadingWorkspace";
 import CursorMotion from "./components/CursorMotion";
+import GitHubModal from "./components/GitHubModal";
+import DocPickerModal from "./components/DocPickerModal";
+import ModelSettingsModal from "./components/ModelSettingsModal";
+import Visualizer from "./components/Visualizer";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "research" | "analytics"
   const [proMode, setProMode] = useState(true); // Defaults to Pro (unlocked)
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+
+  // Feature Action Palette States
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [isDocPickerOpen, setIsDocPickerOpen] = useState(false);
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+  const [webSearchActive, setWebSearchActive] = useState(false);
+  const [deepResearchActive, setDeepResearchActive] = useState(false);
+  const [visualizeActive, setVisualizeActive] = useState(false);
+  const [selectedDocs, setSelectedDocs] = useState([]);
+
+  const handleToggleDoc = (docName) => {
+    setSelectedDocs(prev => 
+      prev.includes(docName) ? prev.filter(d => d !== docName) : [...prev, docName]
+    );
+  };
 
   // Global fetch interceptor for JWT auth header and 401 logging out
   useEffect(() => {
@@ -534,8 +553,51 @@ export default function App() {
           {activeTab === "qa" && (
             <div className="max-w-4xl mx-auto space-y-6">
               
-              {/* Search Bar Input */}
-              <SearchBar onSubmit={handleSubmitQuery} isLoading={isLoading} proMode={proMode} />
+              {/* Search Bar Input with Action Palette */}
+              <SearchBar 
+                onSubmit={(q) => {
+                  if (deepResearchActive) {
+                    setActiveTab("research");
+                  }
+                  handleSubmitQuery(q);
+                }} 
+                isLoading={isLoading} 
+                proMode={proMode} 
+                onToggleWebSearch={() => setWebSearchActive(!webSearchActive)}
+                webSearchActive={webSearchActive}
+                onToggleDeepResearch={() => setDeepResearchActive(!deepResearchActive)}
+                deepResearchActive={deepResearchActive}
+                onToggleVisualize={() => setVisualizeActive(!visualizeActive)}
+                visualizeActive={visualizeActive}
+                onOpenGitHub={() => setIsGithubModalOpen(true)}
+                onOpenDocPicker={() => setIsDocPickerOpen(true)}
+                onOpenModelSettings={() => setIsModelModalOpen(true)}
+              />
+
+              {/* Scoped Library Files Pill */}
+              {selectedDocs.length > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-lavender-500/10 border border-lavender-300/20 text-xs text-lavender-200 animate-fade-in">
+                  <span className="font-semibold text-[11px] uppercase tracking-wider text-lavender-300">Scoped Context ({selectedDocs.length}):</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedDocs.map((d, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-dark-900/60 border border-lavender-300/20 text-[11px] font-mono">
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setSelectedDocs([])}
+                    className="text-[10px] text-rose-400 hover:underline ml-auto"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+
+              {/* Interactive Visualizer Canvas (when active) */}
+              {visualizeActive && (
+                <Visualizer />
+              )}
 
               {/* Chat Conversation Thread */}
               {messages.length > 0 && (
@@ -694,6 +756,28 @@ export default function App() {
         provenance={noteProvenance}
         onSaveComplete={() => {
           // Refresh triggers if needed
+        }}
+      />
+      <GitHubModal
+        isOpen={isGithubModalOpen}
+        onClose={() => setIsGithubModalOpen(false)}
+        onRepoImported={() => {
+          fetchDocuments();
+          setIsGithubModalOpen(false);
+        }}
+      />
+      <DocPickerModal
+        isOpen={isDocPickerOpen}
+        onClose={() => setIsDocPickerOpen(false)}
+        documents={documents}
+        selectedDocs={selectedDocs}
+        onToggleDoc={handleToggleDoc}
+      />
+      <ModelSettingsModal
+        isOpen={isModelModalOpen}
+        onClose={() => setIsModelModalOpen(false)}
+        onSettingsUpdated={() => {
+          fetchSettings();
         }}
       />
     </div>
