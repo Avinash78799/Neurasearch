@@ -19,12 +19,18 @@ import {
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 
-export default function ResearchPanel({ proMode, onSaveToKnowledge }) {
-  const [question, setQuestion] = useState("");
+export default function ResearchPanel({ proMode, onSaveToKnowledge, initialQuestion = "" }) {
+  const [question, setQuestion] = useState(initialQuestion);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(null);
   const [subQueries, setSubQueries] = useState([]);
   const [activeQueryIndex, setActiveQueryIndex] = useState(0);
+
+  useEffect(() => {
+    if (initialQuestion) {
+      setQuestion(initialQuestion);
+    }
+  }, [initialQuestion]);
   
   const [report, setReport] = useState(null);
   const [savedReports, setSavedReports] = useState([]);

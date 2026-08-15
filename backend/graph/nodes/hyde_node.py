@@ -1,16 +1,15 @@
 """
 HyDE Node — Hypothetical Document Embedding.
 
-Generates a hypothetical ideal answer to the user's question using Llama 3.3,
-then embeds that answer with OllamaEmbeddings. The resulting embedding vector
-is used by the hybrid retriever for similarity search, which typically yields
-higher-quality matches than embedding the raw question.
+Generates a hypothetical ideal answer to the user's question using the active LLM,
+then embeds that answer with OllamaEmbeddings for similarity search.
 """
 
 import logging
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from config import settings
 from graph.state import CRAGState
+from core.model_registry import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +32,8 @@ async def hyde_node(state: CRAGState) -> dict:
     logger.info("HyDE node — generating hypothetical answer for: %s", question)
 
     try:
-        # Generate hypothetical answer
-        llm = ChatOllama(
-            model=settings.ollama_llm_model,
-            base_url=settings.ollama_base_url,
-            num_predict=150,
-            temperature=0.7,
-            num_ctx=2048,
-        )
+        # Generate hypothetical answer via unified model registry
+        llm = get_llm(temperature=0.7, max_tokens=200)
         response = await llm.ainvoke(HYDE_PROMPT.format(question=question))
         hypothetical_answer = response.content.strip()
         logger.debug("Hypothetical answer (%d chars): %s…",
@@ -59,24 +52,15 @@ async def hyde_node(state: CRAGState) -> dict:
             "hyde_embedding": hyde_embedding,
             "steps_taken": ["Generating hypothetical answer (HyDE)..."],
         }
-
     except Exception as exc:
-        logger.error("HyDE node failed: %s", exc, exc_info=True)
-        # Fallback: embed the raw question or return fallback vector if Ollama is unreachable
-        try:
-            embeddings = OllamaEmbeddings(
-                model=settings.ollama_embed_model,
-                base_url=settings.ollama_base_url,
-            )
-            fallback_embedding = await embeddings.aembed_query(f"search_query: {question}")
-        except Exception:
-            fallback_embedding = [0.1] * 768
-
+        logger.error("HyDE generation failed: %s — falling back to question embedding", exc)
+        embeddings = OllamaEmbeddings(
+            model=settings.ollama_embed_model,
+            base_url=settings.ollama_base_url,
+        )
+        hyde_embedding = await embeddings.aembed_query(f"search_query: {question}")
         return {
-            "hypothetical_answer": question,
-            "hyde_embedding": fallback_embedding,
-            "steps_taken": [
-                "Generating hypothetical answer (HyDE)... "
-                f"(fallback to raw question — {exc})"
-            ],
+            "hypothetical_answer": "",
+            "hyde_embedding": hyde_embedding,
+            "steps_taken": ["HyDE skipped (fallback to direct embedding)"],
         }

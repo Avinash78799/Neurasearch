@@ -2,14 +2,14 @@
 Query Rewriter Node — LLM-based query reformulation.
 
 When retrieval quality is 'partial', the original question is rewritten by
-Llama 3.3 to be more specific and likely to surface relevant documents on
+the active LLM to be more specific and likely to surface relevant documents on
 the next retrieval pass.
 """
 
 import logging
-from langchain_ollama import ChatOllama
 from config import settings
 from graph.state import CRAGState
+from core.model_registry import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +35,7 @@ async def query_rewriter(state: CRAGState) -> dict:
     logger.info("Query rewriter — rewriting: '%s'", question)
 
     try:
-        llm = ChatOllama(
-            model=settings.ollama_llm_model,
-            base_url=settings.ollama_base_url,
-        )
+        llm = get_llm(temperature=0.3, max_tokens=150)
         response = await llm.ainvoke(REWRITE_PROMPT.format(question=question))
         rewritten = response.content.strip()
 
@@ -57,11 +54,10 @@ async def query_rewriter(state: CRAGState) -> dict:
             "question": rewritten,
             "steps_taken": ["Rewriting query..."],
         }
-
     except Exception as exc:
-        logger.error("Query rewriter failed: %s", exc, exc_info=True)
+        logger.error("Query rewrite failed: %s — keeping original query", exc)
         return {
             "rewritten_query": question,
             "question": question,
-            "steps_taken": [f"Rewriting query... (error: {exc})"],
+            "steps_taken": ["Query rewrite skipped"],
         }

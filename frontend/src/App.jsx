@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Brain, Zap, Sparkles, MessageSquare, Info, BookOpen, Search } from "lucide-react";
+import { 
+  Brain, Zap, Sparkles, MessageSquare, Info, BookOpen, Search, 
+  BarChart2, Cpu, Database, Laptop, ShieldCheck, LogOut, Moon, Sun, Plus
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 import SearchBar from "./components/SearchBar";
@@ -12,7 +15,6 @@ import DocumentList from "./components/DocumentList";
 import ConversationHistory from "./components/ConversationHistory";
 import InsightsDashboard from "./components/InsightsDashboard";
 import ResearchPanel from "./components/ResearchPanel";
-import ProBadge from "./components/ProBadge";
 import StatusBar from "./components/StatusBar";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import LoginScreen from "./components/LoginScreen";
@@ -28,8 +30,8 @@ import ModelSettingsModal from "./components/ModelSettingsModal";
 import Visualizer from "./components/Visualizer";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "research" | "analytics"
-  const [proMode, setProMode] = useState(true); // Defaults to Pro (unlocked)
+  const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "reader" | "research" | "analytics" | "knowledge" | "search"
+  const [proMode, setProMode] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
 
   // Feature Action Palette States
@@ -40,6 +42,8 @@ export default function App() {
   const [deepResearchActive, setDeepResearchActive] = useState(false);
   const [visualizeActive, setVisualizeActive] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState([]);
+  const [initialResearchQuery, setInitialResearchQuery] = useState("");
+  const [activeProfileInfo, setActiveProfileInfo] = useState("Eco (4GB VRAM)");
 
   const handleToggleDoc = (docName) => {
     setSelectedDocs(prev => 
@@ -59,7 +63,7 @@ export default function App() {
         };
       }
       const response = await originalFetch(url, options);
-      if (response.status === 401) {
+      if (response.status === 401 && !url.includes("/token") && !url.includes("/hardware/specs")) {
         localStorage.removeItem("token");
         setIsAuthenticated(false);
       }
@@ -122,13 +126,21 @@ export default function App() {
     }
   }, []);
 
-  /* ─── Fetch Settings & Tier ─── */
+  /* ─── Fetch Settings & Hardware Tier ─── */
   const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/settings");
       if (res.ok) {
         const data = await res.json();
         setProMode(data.pro_mode);
+      }
+      const hwRes = await fetch("/api/v1/hardware/specs");
+      if (hwRes.ok) {
+        const hwData = await hwRes.json();
+        if (hwData.specs) {
+          const rec = hwData.specs.recommended_profile;
+          setActiveProfileInfo(rec === "turbo" ? "Cloud Turbo (Groq 70B)" : rec === "balanced" ? "Balanced (8GB VRAM)" : "Eco (4GB VRAM: GTX 1650)");
+        }
       }
     } catch {}
   }, []);
@@ -195,11 +207,6 @@ export default function App() {
 
   /* ─── Create a New Chat Thread ─── */
   const handleCreateNewChat = () => {
-    // Check quota for free tier
-    if (!proMode && conversations.length >= 5) {
-      toast.error("Conversation limit reached on Free Tier. Upgrade to Pro!");
-      return;
-    }
     setActiveConversationId(null);
     setMessages([]);
     setSteps([]);
@@ -222,7 +229,7 @@ export default function App() {
     } catch {}
   };
 
-  /* ─── Select Document for Insights ─── */
+  /* ─── Select Document for Reading Studio ─── */
   const handleSelectDocument = (doc) => {
     setSelectedDoc(doc);
     setActiveTab("reader");
@@ -241,37 +248,50 @@ export default function App() {
           setActiveTab("qa");
         }
         fetchDocuments();
+        toast.success(`Deleted ${source}`);
       }
     } catch {}
   };
 
-  /* ─── Run RAGAS Evaluation ─── */
+  /* ─── Run Benchmark Evaluation ─── */
   const handleRunEval = useCallback(async () => {
     setEvalLoading(true);
+    const evalToast = toast.loading("Executing 10-Dimension AI Benchmark Suite...");
     try {
-      const res = await fetch("/api/v1/eval/run");
-      if (!res.ok) throw new Error("Evaluation failed");
-      const data = await res.json();
-      setEvalScores(data);
-      toast.success("RAGAS Evaluation completed successfully!");
-    } catch (e) {
-      toast.error("RAGAS Evaluation failed. Check server dependencies.");
+      const res = await fetch("/api/v1/eval/benchmark/suite");
+      if (res.ok) {
+        const data = await res.json();
+        setEvalScores(data);
+        toast.success("Benchmark completed! Grounding score calculated.", { id: evalToast });
+      } else {
+        toast.error("Benchmark failed to run.", { id: evalToast });
+      }
+    } catch {
+      toast.error("Network error during evaluation run.", { id: evalToast });
     } finally {
       setEvalLoading(false);
     }
   }, []);
 
-  /* ─── Submit Q&A Query (SSE Streaming) ─── */
+  /* ─── Submit Query with Scoping and Action Modes ─── */
   const handleSubmitQuery = useCallback(async (q) => {
     if (!q.trim()) return;
+
+    // If Deep Research mode is toggled, switch tab and pass query
+    if (deepResearchActive) {
+      setInitialResearchQuery(q);
+      setActiveTab("research");
+      return;
+    }
+
     setQuestion(q);
     setIsLoading(true);
     setSteps([]);
     setResult(null);
     setEvalScores(null);
 
-    // Optimistically update conversation history state for first query
-    const optimisticMsg = { id: "opt-user", role: "user", content: q };
+    const tempMsgId = `opt-${Date.now()}`;
+    const optimisticMsg = { id: tempMsgId, role: "user", content: q };
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
@@ -280,12 +300,15 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           question: q,
-          conversation_id: activeConversationId
+          conversation_id: activeConversationId,
+          selected_documents: selectedDocs.length > 0 ? selectedDocs : undefined,
+          enable_web_search: webSearchActive
         }),
       });
 
       if (!res.ok) {
         setIsLoading(false);
+        setMessages(prev => prev.filter(m => m.id !== tempMsgId));
         toast.error("Query failed to execute.");
         return;
       }
@@ -326,26 +349,23 @@ export default function App() {
                 setSteps(d.steps);
               }
               
-              // Set the returned conversation id as active
               if (d.conversation_id) {
                 setActiveConversationId(d.conversation_id);
                 await fetchMessages(d.conversation_id);
                 fetchConversations();
               }
-              
               setIsLoading(false);
             }
-          } catch {
-            // parsing error
-          }
+          } catch {}
         }
       }
       setIsLoading(false);
     } catch {
       setIsLoading(false);
+      setMessages(prev => prev.filter(m => m.id !== tempMsgId));
       toast.error("Network error during query execution.");
     }
-  }, [activeConversationId, fetchConversations, fetchMessages]);
+  }, [activeConversationId, deepResearchActive, selectedDocs, webSearchActive, fetchConversations, fetchMessages]);
 
   if (!isAuthenticated) {
     return (
@@ -362,49 +382,75 @@ export default function App() {
       <CursorMotion />
       <Toaster position="top-right" />
 
-      {/* ─── Sidebar ─── */}
-      <aside className="w-[280px] flex-shrink-0 glass border-r border-white/[.07] flex flex-col justify-between">
+      {/* ─── Modern Perplexity / ChatGPT Sidebar ─── */}
+      <aside className="w-[280px] flex-shrink-0 glass border-r border-[var(--border-primary)] flex flex-col justify-between z-20">
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Logo */}
-          <div className="px-5 py-5 border-b border-white/[.07] flex items-center justify-between">
+          {/* Logo & Brand Header */}
+          <div className="px-5 py-4.5 border-b border-[var(--border-primary)] flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-9.5 h-9.5 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center neon-glow-cyan">
-                  <Brain className="w-5.5 h-5.5 text-white" />
-                </div>
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-neon-emerald animate-pulse" />
+              <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md shadow-purple-500/20 text-white font-black">
+                <Brain className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-sm font-bold tracking-tight text-white leading-tight">
+                <h1 className="text-sm font-bold tracking-tight text-[var(--text-primary)] leading-tight">
                   NeuraSearch
                 </h1>
-                <p className="text-[9px] text-gray-500 font-semibold tracking-wider uppercase leading-none mt-0.5">
-                  Local Workspace
+                <p className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                  AI Research Assistant
                 </p>
               </div>
             </div>
-            
-            <ProBadge proMode={proMode} onTogglePro={(val) => {
-              setProMode(val);
-              fetchConversations();
-              fetchDocuments();
-            }} />
           </div>
 
           {/* New Chat Button */}
-          <div className="px-4 pt-4 pb-2">
+          <div className="px-4 pt-3.5 pb-2">
             <button
               onClick={handleCreateNewChat}
-              className="w-full py-2.5 px-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-semibold text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/25 active:scale-[0.98]"
             >
-              <MessageSquare className="w-4 h-4 text-neon-cyan" />
-              <span>New Conversation</span>
+              <Plus className="w-4 h-4" />
+              <span>New Research Thread</span>
             </button>
           </div>
 
-          {/* Sidebar Modules (Scrollable) */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-6">
-            {/* Conversations history list */}
+          {/* Sidebar Navigation Items */}
+          <div className="px-3 py-2 space-y-1 border-b border-[var(--border-primary)]">
+            {[
+              { id: "qa", label: "Smart Research Q&A", icon: MessageSquare },
+              { id: "research", label: "Deep Research Studio", icon: Sparkles },
+              { id: "reader", label: "Reading Studio", icon: BookOpen },
+              { id: "analytics", label: "Analytics & Graph", icon: BarChart2 },
+              { id: "knowledge", label: "Knowledge Hub", icon: Database },
+              { id: "search", label: "Universal Search", icon: Search },
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                    isActive 
+                      ? "bg-purple-600/15 text-[var(--accent-primary)] font-bold border border-purple-500/30" 
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-purple-500/10"
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scrollable Document Library & History */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+            <DocumentList
+              documents={documents}
+              selectedSource={selectedDoc?.source}
+              onSelect={handleSelectDocument}
+              onDelete={handleDeleteDocument}
+            />
+
             <ConversationHistory
               conversations={conversations}
               activeId={activeConversationId}
@@ -412,19 +458,11 @@ export default function App() {
               onDelete={handleDeleteConversation}
               proMode={proMode}
             />
-
-            {/* Ingested Documents list */}
-            <DocumentList
-              documents={documents}
-              selectedSource={selectedDoc?.source}
-              onSelect={handleSelectDocument}
-              onDelete={handleDeleteDocument}
-            />
           </div>
         </div>
 
-        {/* Upload Zone in sidebar bottom */}
-        <div className="p-4 border-t border-white/[0.07]">
+        {/* Upload & Bottom User Status Bar */}
+        <div className="p-3 border-t border-[var(--border-primary)] space-y-2">
           <DocumentUpload 
             onUploadComplete={fetchDocuments} 
             proMode={proMode}
@@ -433,134 +471,67 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ─── Main Content Wrapper ─── */}
+      {/* ─── Main Content Area ─── */}
       <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
         
-        {/* Top Tab Navigator */}
-        <header className="h-[60px] glass border-b border-white/[0.07] flex items-center justify-between px-8">
-          <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.06] p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab("qa")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === "qa"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Smart Q&A
-            </button>
-            <button
-              onClick={() => {
-                if (!selectedDoc) {
-                  toast.error("Select a document from the sidebar list first!");
-                  return;
-                }
-                setActiveTab("insights");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === "insights"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Doc Insights
-            </button>
-            <button
-              onClick={() => {
-                if (!selectedDoc) {
-                  toast.error("Select a document from the sidebar list first!");
-                  return;
-                }
-                setActiveTab("reader");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1 ${
-                activeTab === "reader"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-neon-cyan" /> Reading Workspace
-            </button>
-            <button
-              onClick={() => {
-                if (!proMode) {
-                  toast.error("Deep Research is a Pro feature. Click Free badge to toggle/upgrade.");
-                  return;
-                }
-                setActiveTab("research");
-              }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                activeTab === "research"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              <span>Deep Research</span>
-              {!proMode && (
-                <span className="text-[8px] bg-neon-violet/20 border border-neon-violet/40 text-neon-violet px-1 rounded uppercase">Pro</span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab("analytics")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === "analytics"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab("knowledge")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === "knowledge"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Knowledge Hub
-            </button>
-            <button
-              onClick={() => setActiveTab("search")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1 ${
-                activeTab === "search"
-                  ? "bg-white/[0.06] text-white"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              <Search className="w-3.5 h-3.5 text-neon-cyan" /> Search Intelligence
-            </button>
+        {/* Top Header Bar */}
+        <header className="h-[60px] glass border-b border-[var(--border-primary)] flex items-center justify-between px-6 z-10">
+          {/* Active View Title */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)]">
+              {activeTab === "qa" && "Smart Research Q&A"}
+              {activeTab === "insights" && "Document Insights Dossier"}
+              {activeTab === "reader" && "Reading & Analysis Studio"}
+              {activeTab === "research" && "Deep Research Monograph"}
+              {activeTab === "analytics" && "Knowledge Graph & System Metrics"}
+              {activeTab === "knowledge" && "Knowledge Notes Hub"}
+              {activeTab === "search" && "Universal Knowledge Search"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-gray-500 font-medium">
-              Active Workspace: <span className="text-gray-300 font-semibold">{selectedDoc ? selectedDoc.source : "Global Corpus"}</span>
-            </div>
+          {/* Header Controls & Profile Badges */}
+          <div className="flex items-center gap-3">
+            {/* Hardware Profile Button */}
+            <button
+              onClick={() => setIsModelModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-purple-400 text-xs font-semibold text-[var(--text-primary)] transition-all shadow-sm"
+              title="Click to view hardware detection and switch profiles"
+            >
+              <Cpu className="w-3.5 h-3.5 text-purple-400" />
+              <span>{activeProfileInfo}</span>
+            </button>
+
+            {/* GitHub Import Button */}
+            <button
+              onClick={() => setIsGithubModalOpen(true)}
+              className="p-2 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-purple-400 transition-all"
+              title="Import GitHub Repository"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {/* Theme Toggle */}
             <ThemeToggle />
+
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="text-xs text-rose-500/70 hover:text-rose-400 font-semibold uppercase tracking-wider px-2.5 py-1 rounded bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all"
+              className="p-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+              title="Logout"
             >
-              Logout
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
 
-        {/* Workspace Body Area */}
+        {/* Workspace Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
           
-          {/* TAB 1: Smart Q&A Chat */}
+          {/* TAB 1: Smart Q&A */}
           {activeTab === "qa" && (
             <div className="max-w-4xl mx-auto space-y-6">
-              
-              {/* Search Bar Input with Action Palette */}
               <SearchBar 
-                onSubmit={(q) => {
-                  if (deepResearchActive) {
-                    setActiveTab("research");
-                  }
-                  handleSubmitQuery(q);
-                }} 
+                onSubmit={handleSubmitQuery} 
                 isLoading={isLoading} 
                 proMode={proMode} 
                 onToggleWebSearch={() => setWebSearchActive(!webSearchActive)}
@@ -574,32 +545,34 @@ export default function App() {
                 onOpenModelSettings={() => setIsModelModalOpen(true)}
               />
 
-              {/* Scoped Library Files Pill */}
+              {/* Scoped Document Context Pills */}
               {selectedDocs.length > 0 && (
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-lavender-500/10 border border-lavender-300/20 text-xs text-lavender-200 animate-fade-in">
-                  <span className="font-semibold text-[11px] uppercase tracking-wider text-lavender-300">Scoped Context ({selectedDocs.length}):</span>
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-500/10 border border-purple-400/30 text-xs text-[var(--text-primary)] animate-fade-in">
+                  <span className="font-bold text-[10px] uppercase tracking-wider text-[var(--accent-primary)]">
+                    Scoped Files ({selectedDocs.length}):
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedDocs.map((d, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded-md bg-dark-900/60 border border-lavender-300/20 text-[11px] font-mono">
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] font-mono">
                         {d}
                       </span>
                     ))}
                   </div>
                   <button 
                     onClick={() => setSelectedDocs([])}
-                    className="text-[10px] text-rose-400 hover:underline ml-auto"
+                    className="text-[11px] text-rose-400 hover:underline ml-auto font-medium"
                   >
-                    Clear
+                    Clear Scope
                   </button>
                 </div>
               )}
 
-              {/* Interactive Visualizer Canvas (when active) */}
+              {/* Interactive Visualizer Canvas */}
               {visualizeActive && (
                 <Visualizer />
               )}
 
-              {/* Chat Conversation Thread */}
+              {/* Chat Thread */}
               {messages.length > 0 && (
                 <div className="space-y-4">
                   {messages.map((msg, idx) => {
@@ -609,30 +582,17 @@ export default function App() {
                         key={idx}
                         className={`flex gap-4 p-5 rounded-2xl border transition-all animate-fade-in ${
                           isUser
-                            ? "bg-white/[0.01] border-white/[0.03] justify-end"
-                            : "glass border-white/[0.07] shadow-sm bg-dark-800/40"
+                            ? "bg-purple-600/10 border-purple-500/20 justify-end"
+                            : "glass-card border-[var(--border-primary)] shadow-sm"
                         }`}
                       >
-                        <div className="max-w-3xl space-y-3">
-                          <span className={`text-[10px] font-bold uppercase tracking-widest block ${isUser ? "text-neon-cyan text-right" : "text-neon-violet"}`}>
-                            {isUser ? "User Question" : "NeuraSearch System"}
+                        <div className="max-w-3xl space-y-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-widest block ${isUser ? "text-purple-400 text-right" : "text-indigo-400"}`}>
+                            {isUser ? "You" : "NeuraSearch Research Assistant"}
                           </span>
-                          
-                          <div className="prose-neura text-sm leading-relaxed text-gray-300 font-normal">
+                          <div className="prose-neura text-sm leading-relaxed">
                             {msg.content}
                           </div>
-
-                          {/* Citation Pills on loaded messages */}
-                          {!isUser && msg.metadata?.citations && msg.metadata.citations.length > 0 && (
-                            <div className="flex flex-wrap gap-2 pt-2.5 border-t border-white/[0.05]">
-                              {msg.metadata.citations.map((cite, i) => (
-                                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dark-700/60 border border-white/[0.06] text-xs text-gray-300">
-                                  <Info className="w-3.5 h-3.5 text-gray-500" />
-                                  {cite}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -640,12 +600,12 @@ export default function App() {
                 </div>
               )}
 
-              {/* Pipeline Live steps */}
+              {/* Live Steps Stream */}
               {isLoading && steps.length > 0 && (
                 <AgentSteps steps={steps} />
               )}
 
-              {/* Final query answer payload card */}
+              {/* Final Synthesis Card */}
               {result && !isLoading && (
                 <div className="space-y-6">
                   {result.retrieval_quality && (
@@ -671,92 +631,84 @@ export default function App() {
                 </div>
               )}
 
-              {/* Idle screen */}
+              {/* Ready State Screen */}
               {messages.length === 0 && !isLoading && !result && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                  <div className="relative mb-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-neon-cyan/20 to-neon-violet/20 flex items-center justify-center border border-white/[0.07] animate-float">
-                      <Zap className="w-8 h-8 text-neon-cyan/80" />
-                    </div>
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-purple-400/25 mb-4 shadow-xl">
+                    <Zap className="w-8 h-8 text-purple-400" />
                   </div>
-                  <h2 className="text-base font-bold text-gray-300 mb-1">
-                    Workspace Ready
+                  <h2 className="text-base font-bold text-[var(--text-primary)] mb-1">
+                    NeuraSearch Workspace Ready
                   </h2>
-                  <p className="text-xs text-gray-500 max-w-sm leading-relaxed">
-                    Upload documents, select a thread from history, or ask a question directly to query your vector index.
+                  <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
+                    Upload research PDFs, import a GitHub repo, or ask questions directly with multi-pass reasoning.
                   </p>
                 </div>
               )}
-
             </div>
           )}
 
-          {/* TAB 2: Document Insights Dashboard */}
-          {activeTab === "insights" && (
-            <div className="max-w-4xl mx-auto">
-              <InsightsDashboard
+          {/* TAB 2: Document Insights */}
+          {activeTab === "insights" && selectedDoc && (
+            <div className="max-w-5xl mx-auto">
+              <InsightsDashboard 
                 document={selectedDoc}
-                allDocuments={documents}
-                proMode={proMode}
-                onSaveToKnowledge={(docName, summaryText) => triggerNoteDraft("/api/v1/knowledge/generate/evidence", { document_id: docName, document_title: docName, content: summaryText }, { created_from: "document", document_id: docName, document_title: docName })}
+                onSaveToKnowledge={(item) => triggerNoteDraft("/api/v1/knowledge/generate/insights", { source: selectedDoc.source, summary: item.summary, topics: item.topics, entities: item.entities }, { created_from: "doc_insights", source: selectedDoc.source })}
               />
             </div>
           )}
 
-          {/* TAB 2.5: Reading Workspace */}
-          {activeTab === "reader" && selectedDoc && (
-            <div className="w-full h-full">
-              <ReadingWorkspace
-                documentName={selectedDoc.source}
-                onClose={() => setActiveTab("qa")}
-              />
+          {/* TAB 3: Reading Studio */}
+          {activeTab === "reader" && (
+            <div className="w-full h-full max-w-7xl mx-auto">
+              <ReadingWorkspace selectedDoc={selectedDoc} />
             </div>
           )}
 
-          {/* TAB 3: Deep Research Panel */}
+          {/* TAB 4: Deep Research Studio */}
           {activeTab === "research" && (
-            <div className="max-w-6xl mx-auto h-full">
-              <ResearchPanel
+            <div className="max-w-6xl mx-auto">
+              <ResearchPanel 
                 proMode={proMode}
-                onSaveToKnowledge={(repId) => triggerNoteDraft("/api/v1/knowledge/generate/report", { report_id: repId }, { created_from: "research", research_report_id: repId, research_session_id: repId })}
+                initialQuestion={initialResearchQuery}
+                onSaveToKnowledge={(rep) => triggerNoteDraft("/api/v1/knowledge/generate/research", { title: rep.title, query: rep.query, synthesis: rep.synthesis, sections: rep.sections }, { created_from: "deep_research" })}
               />
             </div>
           )}
 
-          {/* TAB 4: Search Analytics */}
+          {/* TAB 5: Analytics */}
           {activeTab === "analytics" && (
             <div className="max-w-6xl mx-auto h-full">
               <AnalyticsDashboard />
             </div>
           )}
 
-          {/* TAB 5: Knowledge Hub */}
+          {/* TAB 6: Knowledge Hub */}
           {activeTab === "knowledge" && (
             <div className="w-full h-full">
               <KnowledgeHub />
             </div>
           )}
 
-          {/* TAB 6: Search Intelligence */}
+          {/* TAB 7: Universal Search */}
           {activeTab === "search" && (
             <div className="w-full h-full">
               <UniversalSearch />
             </div>
           )}
-
         </div>
 
         {/* Bottom System Status Bar */}
         <StatusBar proMode={proMode} documentsCount={documents.length} />
       </main>
+
+      {/* Modals */}
       <AINoteDraftModal
         isOpen={draftModalOpen}
         onClose={() => setDraftModalOpen(false)}
         draft={noteDraft}
         provenance={noteProvenance}
-        onSaveComplete={() => {
-          // Refresh triggers if needed
-        }}
+        onSaveComplete={() => {}}
       />
       <GitHubModal
         isOpen={isGithubModalOpen}
