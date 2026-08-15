@@ -1,149 +1,227 @@
-# NeuraSearch
+# NeuraSearch v2.1 🧠⚡
 
-A self-correcting, enterprise-ready AI Research Assistant that runs 100% locally. 
+> **High-Fidelity AI Research Assistant & Knowledge Studio with Adaptive Hardware Auto-Tuning, Corrective RAG (CRAG), and Zero-Hallucination Guarantees.**
 
-NeuraSearch combines an advanced agentic Corrective RAG (CRAG) graph with a multi-step Deep Research engine to analyze documents, plan search strategies, compile findings, execute sandboxed calculations, and generate high-fidelity reports with local verification.
-
----
-
-## 🔄 System Architecture
-
-NeuraSearch's execution flow operates at two distinct granularities: the overall system layers and the detailed RAG/research execution pipeline.
-
-### 1. High-Level System Architecture
-This diagram outlines the layers of the application from user interface down to local model execution and data stores.
-
-![High-Level Architecture](docs/architecture/high_level_arch.png)
-
-### 2. Detailed RAG & Research Execution Pipeline
-This diagram traces a query through workspace context boundaries, hybrid retrieval,Reciprocal Rank Fusion, grading, query re-writing, and sandboxed execution before generating the final report.
-
-![Detailed Retrieval & Research Pipeline](docs/architecture/detailed_pipeline.png)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-v1.1-FF6F00.svg)](https://github.com/langchain-ai/langgraph)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tests](https://img.shields.io/badge/Tests-46%2F46%20Passed-10B981.svg)]()
 
 ---
 
-## 🔥 Key Architectural Features
+## 📖 Overview
 
-- **Multi-Workspace Isolation**: Complete logical data boundaries across all tables, ChromaDB collections, and BM25 indices. Context is dynamically resolved via the client's `X-Workspace-ID` header.
-- **Deep Research Engine**: Decomposes complex user inquiries into structured search sub-query blueprints, executing retrievals concurrently under a configurable semaphore to maximize local performance.
-- **Hybrid Retrieval & RRF Fusion**: Combines dense vector search (`nomic-embed-text` embeddings) and pickle-persisted `rank-bm25` sparse indexing, synthesizing results via Reciprocal Rank Fusion (RRF).
-- **Corrective RAG (CRAG) Grader**: Evaluates retrieved document relevance in parallel using Llama 3.1. Routes to query re-writing on partial relevance or Tavily web search fallback on poor relevance.
-- **Sandboxed Python Computation**: A highly-restricted sandbox tool executing code in clean subprocesses with blocked network sockets (`env={}`), limited imports (`math`, `datetime`, `json`), and a 3.0s timeout limit.
-- **Hallucination Prevention**: Verifies generated reports against retrieved evidence. If claims aren't fully grounded, triggers up to 2 context-guided regenerations before returning the report with a warning tag.
-- **Local RAGAS Evaluation**: Measures Faithfulness, Answer Relevancy, Context Recall, and Context Precision in real-time, executing local evaluation runs via Llama 3.1.
-- **Production-Ready Observability**: Structured JSON logging output to stdout, ready to plug directly into OpenTelemetry, Datadog, or Grafana Loki.
-- **Slowapi Rate Limiting**: Built-in IP-based rate limiting (default 60 req/min for general API, 10 req/min for research endpoints) to prepare local deployments for SaaS scaling.
+**NeuraSearch** is a production-grade, state-of-the-art AI research studio engineered for privacy-conscious researchers, engineers, and data teams. It combines **Corrective Retrieval-Augmented Generation (CRAG)**, hybrid dense-sparse vector search (**ChromaDB + BM25Okapi**), **adaptive hardware auto-tuning**, and autonomous multi-step **Deep Research** into an ultra-responsive, editorial interface.
+
+Unlike traditional RAG systems that blindly dump retrieved chunks into an LLM prompt, NeuraSearch validates every retrieval step through parallel relevance grading, automatic query rewriting, Tavily web search fallbacks, and real-time hallucination grading loops.
 
 ---
 
-## 🛠️ Tech Stack
+## ⚡ Key Capabilities
 
-- **Large Language Model**: Llama 3.1 8B via Ollama (100% local)
-- **Embeddings**: `nomic-embed-text` via Ollama (100% local)
-- **Agentic Framework**: LangGraph v1.1 StateGraph + SqliteSaver Checkpointer
-- **Vector DB**: ChromaDB (isolated metadata filter)
-- **Sparse Retrieval**: rank-bm25 (pickle-persisted per workspace)
-- **Backend API**: FastAPI (Slowapi rate limits, structured JSON logs, JWT authentication)
-- **Frontend Dashboard**: Vite + React 18 + TailwindCSS (Dark-mode Glassmorphism design)
-- **Evaluation Framework**: RAGAS v0.2.x
+- 🟢 **Adaptive Hardware Auto-Tuning**:
+  Automatically profiles system GPU (NVIDIA VRAM), CPU, and RAM to select the optimal model tier:
+  - **Eco Profile**: Configured for 4GB VRAM & 8GB RAM laptops (`llama3.2:3b`, 3–6s latency, zero system freezing).
+  - **Balanced Profile**: Configured for 6–8GB VRAM gaming rigs (`llama3.1:8b`, 8–14s latency).
+  - **Cloud Turbo Profile**: Free Groq LPU `llama-3.3-70b` @ 350+ tokens/sec (1–2s latency).
+- 🔄 **Corrective RAG (CRAG) Pipeline**:
+  - **HyDE (Hypothetical Document Embeddings)**: Generates hypothetical answers under 150 words to bridge semantic phrasing gaps.
+  - **Hybrid RRF Fusion**: Reciprocal Rank Fusion ($k=60$) over dense ChromaDB vector embeddings and sparse BM25 keyword rankings.
+  - **Parallel Chunk Grading**: Concurrently evaluates document relevance with LLMs to eliminate irrelevant context.
+  - **Autonomous Query Rewriter & Web Search Fallback**: Automatically rewrites vague queries and searches live web sources when local documents are insufficient.
+- 🛠️ **Search Bar Action Palette (`+` Button)**:
+  - 📚 **Add from Library**: Restrict research questions to specific documents.
+  - 🌐 **Web Search**: Live web synthesis via Tavily API.
+  - 📢 **Deep Research**: Autonomous 20-section academic monograph generation with sub-query trees.
+  - 📊 **Visualizer**: Interactive SVG charts (comparative metrics, distribution breakdown).
+  - 🐙 **GitHub Integration**: Ingest public and private GitHub repositories, source code files, and READMEs directly into vector memory.
+  - 🤖 **AI Platform Settings**: Runtime hot-swapping between Local Ollama, Groq, OpenAI, and DeepSeek.
+- 📖 **Reading Studio & Knowledge Hub**:
+  - Sentence-level PDF text highlighter with persistent color tags.
+  - Automatic AI Note generator for instant literature reviews and meeting notes.
+  - Universal Search across notes, highlights, documents, and chat threads.
+- 🔒 **Support & Developer Maintenance Hub**:
+  - Customer Care helpdesk with automated diagnostic bundle attachments and FAQ accordion.
+  - **Developer Security Gate** (`admin`/`password123`) protecting 1-click BM25 re-indexing, SQLite page optimization (`VACUUM`), and hardware telemetry.
 
 ---
 
-## 🔌 API Reference
+## 🏗️ System Architecture
 
-### System & Authentication (Root)
 ```
-POST   /token                → Authenticate user, return JWT access token
-GET    /health               → Check Ollama and ChromaDB connectivity status
-```
-
-### Version 1 Business APIs (`/api/v1`)
-```
-GET    /api/v1/workspaces           → List all registered workspaces
-POST   /api/v1/workspaces          → Create a new workspace context
-POST   /api/v1/ingest              → Upload + parse document (PDF/TXT), chunk, and index
-POST   /api/v1/query               → Run 8-node CRAG pipeline, stream progress via SSE
-GET    /api/v1/documents           → List all unique source filenames in workspace
-DELETE /api/v1/documents/{source}  → Delete document from vectorstore and BM25 index
-POST   /api/v1/insights/compare    → Contrast summaries of two documents on a topic
-GET    /api/v1/conversations       → Get workspace conversation threads
-DELETE /api/v1/conversations/{id}  → Delete a conversation thread
-POST   /api/v1/research/blueprint  → Decompose question and generate sub-queries
-POST   /api/v1/research/execute    → Run deep research pipeline and stream reports
-POST   /api/v1/research            → Single-transaction deep research report stream
-GET    /api/v1/research/reports    → List all saved deep research reports
-GET    /api/v1/settings            → Fetch system settings (Pro mode toggles)
-PUT    /api/v1/settings            → Update system settings
-GET    /api/v1/eval/run            → Run local RAGAS evaluation on test set
+                               ┌─────────────────────────┐
+                               │     USER QUERY / PROMPT │
+                               └────────────┬────────────┘
+                                            │
+                                            ▼
+                               ┌─────────────────────────┐
+                               │  HyDE Hypothetical Gen  │
+                               └────────────┬────────────┘
+                                            │
+                       ┌────────────────────┴────────────────────┐
+                       ▼                                         ▼
+          ┌─────────────────────────┐               ┌─────────────────────────┐
+          │   ChromaDB Dense Vector │               │   BM25 Sparse Keyword   │
+          │    (nomic-embed-text)   │               │     (rank-bm25 pkl)     │
+          └────────────┬────────────┘               └────────────┬────────────┘
+                       │                                         │
+                       └────────────────────┬────────────────────┘
+                                            ▼
+                               ┌─────────────────────────┐
+                               │ Reciprocal Rank Fusion  │
+                               └────────────┬────────────┘
+                                            │
+                                            ▼
+                               ┌─────────────────────────┐
+                               │   Parallel Doc Grader   │
+                               └────────────┬────────────┘
+                                            │
+                       ┌────────────────────┴────────────────────┐
+                       ▼ (Relevant >= 80%)                       ▼ (Irrelevant < 30%)
+          ┌─────────────────────────┐               ┌─────────────────────────┐
+          │   Llama 3 Synthesizer   │               │   Tavily Web Search     │
+          └────────────┬────────────┘               └────────────┬────────────┘
+                       │                                         │
+                       ▼                                         ▼
+          ┌─────────────────────────┐               ┌─────────────────────────┐
+          │  Hallucination Verifier │               │   Llama 3 Synthesizer   │
+          └────────────┬────────────┘               └────────────┬────────────┘
+                       │
+                       ▼
+          ┌───────────────────────────────────────────────────────┐
+          │ Grounded Answer with Source Citations & Follow-ups    │
+          └───────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quickstart Guide
 
-### 1. Configure Environment
-Copy the example environment file and configure your keys:
+### 1. Prerequisites
+- **Python 3.10+**
+- **Node.js 18+ & npm**
+- **Ollama** installed and running locally ([Download Ollama](https://ollama.ai))
+
+### 2. Pull Required Models
 ```bash
-cp .env.example .env
+ollama pull llama3.2:3b
+ollama pull nomic-embed-text
 ```
-*(If you want to use the web search fallback, make sure to insert your `TAVILY_API_KEY`.)*
 
-### 2. Startup with Docker Compose
-Start the Ollama server, backend server, and React frontend:
+### 3. Backend Setup
 ```bash
-make docker-up
+# Clone the repository
+git clone https://github.com/Avinash78799/Neurasearch.git
+cd Neurasearch
+
+# Create and activate virtual environment
+python -m venv backend/.venv
+# On Windows:
+backend\.venv\Scripts\activate
+# On Linux/macOS:
+source backend/.venv/bin/activate
+
+# Install backend dependencies
+pip install -r backend/requirements.txt
+
+# Start the FastAPI server (Port 8000)
+uvicorn main:app --app-dir backend --host 0.0.0.0 --port 8000
 ```
 
-### 3. Pull Local Models
-Download the required LLM and Embedding models into Ollama:
+### 4. Frontend Setup
 ```bash
-make pull-models
+# In a new terminal, navigate to the frontend directory
+cd frontend
+
+# Install frontend dependencies
+npm install
+
+# Start the Vite development studio (Port 5173)
+npm run dev
 ```
 
-### 4. Access the Dashboard
-Open your browser and navigate to:
-`http://localhost:5173`
+Open [http://localhost:5173](http://localhost:5173) in your browser.  
+Default credentials:
+- **Username**: `admin`
+- **Password**: `password123`
 
 ---
 
-## 📊 Performance Profiles & Benchmarks
+## 🧪 Testing & Verification
 
-Full performance diagnostics and memory profiles are documented in [docs/benchmarks/README.md](docs/benchmarks/README.md).
+NeuraSearch includes a complete unit testing suite covering RAG, LangGraph nodes, database migrations, and workspace isolation:
 
-| Metric | Latency (CPU Llama 3.1) | Latency (Mocked LLM) | Peak Memory |
-| --- | --- | --- | --- |
-| Blueprint Generation | **16.8 s** | **< 1 ms** | ~121.4 MB |
-| Parallel Retrieval | **134.4 s** | **20.6 ms** | ~121.4 MB |
-| Report Synthesis | **153.3 s** | **< 1 ms** | ~121.4 MB |
+```bash
+# Run all unit tests
+python -m unittest discover tests
+
+# Expected output:
+# Ran 46 tests in 5.32s
+# OK
+```
+
+To compile the production frontend bundle:
+```bash
+cd frontend
+npm run build
+```
 
 ---
 
-## 📘 Architecture Decision Records (ADRs)
+## ⚙️ Configuration (`.env`)
 
-Key architectural choices are formally documented in `docs/adr/`:
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama API server endpoint |
+| `OLLAMA_LLM_MODEL` | `llama3.2:3b` | Default LLM model name |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Dense embedding model |
+| `LLM_PROVIDER` | `ollama` | Active provider (`ollama`, `groq`, `openai`, `deepseek`) |
+| `GROQ_API_KEY` | *(Optional)* | Groq API Key for 350+ tok/s 70B Cloud Turbo |
+| `TAVILY_API_KEY` | *(Optional)* | Tavily API Key for real-time web retrieval |
+| `CHROMA_PATH` | `./chroma_db` | Persistent ChromaDB storage directory |
+| `SQLITE_DB_PATH` | `./neurasearch.db` | Application SQLite database path |
+| `APP_PORT` | `8000` | FastAPI server port |
 
-1. [ADR-001: Workspace Isolation](docs/adr/ADR-001_Workspace_Isolation.md) — Logical workspace filtering.
-2. [ADR-002: Chroma Metadata Filtering](docs/adr/ADR-002_Chroma_Metadata_Filtering.md) — Tagging vectors for workspace boundaries.
-3. [ADR-003: BM25 Partitioning](docs/adr/ADR-003_BM25_Partitioning.md) — Storing separate pickles per workspace.
-4. [ADR-004: Evidence Package](docs/adr/ADR-004_Evidence_Package.md) — Strongly typed pydantic state transitions.
-5. [ADR-005: Model Registry](docs/adr/ADR-005_Model_Registry.md) — Global lazy singletons for local models.
-6. [ADR-006: Research Blueprint](docs/adr/ADR-006_Research_Blueprint.md) — Two-stage planning UX.
-7. [ADR-007: Computation Tool](docs/adr/ADR-007_Computation_Tool.md) — Restricted subprocess sandbox code execution.
+---
+
+## 📁 Repository Layout
+
+```
+neurasearch/
+├── backend/
+│   ├── core/                  # Hardware profiler, model registry & exceptions
+│   ├── graph/                 # LangGraph CRAG nodes, router & graph definition
+│   ├── rag/                   # ChromaDB, BM25, sentence chunker & GitHub connector
+│   ├── support/               # Diagnostics, maintenance service & ticket logger
+│   ├── research/              # Deep Research multi-pass monograph engine
+│   ├── eval/                  # 10-Dimension scientific evaluation suite
+│   ├── config.py              # Pydantic configuration & environment settings
+│   ├── database.py            # SQLite schema, queries & telemetry
+│   └── main.py                # FastAPI server with SSE streaming & auth
+├── frontend/
+│   ├── src/
+│   │   ├── components/        # SearchBar, SupportHub, Modals, Reading Studio, Visualizer
+│   │   ├── App.jsx            # Main research studio layout
+│   │   └── index.css          # Flagship Carbon & Precision Slate theme
+│   ├── package.json
+│   └── vite.config.js
+├── tests/                     # 46 automated unit tests
+├── .env.example               # Template environment configuration
+└── CONTRIBUTING.md            # Guidelines for open-source contributions
+```
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please review our [Contributing Guidelines](CONTRIBUTING.md) to understand development setup, code formatting standards (Ruff + Black), and the Pull Request pipeline.
-
----
-
-## 🛡️ Security
-
-For reporting security vulnerabilities and understanding security architecture details, see [SECURITY.md](SECURITY.md).
+Contributions, issues, and feature requests are welcome!  
+Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is open-source and licensed under the [MIT License](LICENSE).

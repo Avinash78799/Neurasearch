@@ -1,49 +1,58 @@
-# ── Dependencies & Virtual Envs ────────────────────────────────────
+# ── Dependencies & Virtual Environments ─────────────────────────
 backend/.venv/
 .venv/
 venv/
 node_modules/
 frontend/node_modules/
 
-# ── Build Outputs ──────────────────────────────────────────────────
+# ── Build Outputs & Distribution ─────────────────────────────────
 dist/
 frontend/dist/
 *.egg-info/
 .build/
 
-# ── Environment & Secrets ──────────────────────────────────────────
+# ── Environment & Secrets ───────────────────────────────────────
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# ── Databases & Vector Stores ──────────────────────────────────────
+# ── Databases, Vector Stores & Indices ───────────────────────────
 *.db
 *.db-shm
 *.db-wal
 *.db-journal
 *.sqlite3
+test_*.db
 chroma_db/
 backend/chroma_db/
+test_chroma_backup/
 *.pkl
 backend/*.pkl
+bm25_*.pkl
 
-# ── Backups & Transfers ────────────────────────────────────────────
+# ── Backups, Transfers & Temporary Artifacts ─────────────────────
 backups/
 test_transfer.json
 *.tar.gz
+scratch/
+*.log
 
-# ── Python Cache ───────────────────────────────────────────────────
+# ── Python Cache & Testing ───────────────────────────────────────
 __pycache__/
 backend/**/__pycache__/
+tests/**/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 .coverage
+htmlcov/
 
-# ── OS & IDE ───────────────────────────────────────────────────────
+# ── OS & IDE Files ───────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
