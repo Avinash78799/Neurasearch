@@ -1,13 +1,17 @@
 """
-Generator Node — Advanced Perplexity-Style Research Synthesis from Retrieved Context.
+Generator Node — Advanced Perplexity/ChatGPT-Grade Scientific Research Synthesis.
 
-Formats the final_context chunks into EvidencePackages with numbered citations
-and prompts the LLM to write a comprehensive, deeply analytical research answer
-with structured takeaways, comparative tables/bullets, source footnotes, and
-interactive suggested follow-up questions.
+Implements:
+1. Tripartite Epistemic Separation (FACT -> ANALYSIS -> INTERPRETATION)
+2. 4-Tier Source Hierarchy Classification
+3. Structured Evidence Matrix Table (Source | Claim | Evidence | Method | Result | Limitation)
+4. Deliberate Contradiction & Counter-Evidence Analysis
+5. Epistemic Confidence Level Assessment (Confirmed / Strongly Supported / Likely / Speculative)
+6. Suggested Inquiries for Interactive Exploration
 """
 
 import logging
+import re
 from typing import List
 
 from config import settings
@@ -18,72 +22,94 @@ from models.evidence import EvidencePackage
 logger = logging.getLogger(__name__)
 
 GENERATION_PROMPT = (
-    "You are NeuraSearch, an advanced AI Research Assistant with the depth of a domain scientist and the clarity of Perplexity AI.\n"
-    "Your objective is to provide a comprehensive, deeply grounded, structured, and insightful synthesis for the user's question based on the provided document context.\n\n"
-    "CRITICAL FORMATTING & SYNTHESIS RULES:\n"
-    "1. Grounding & Accuracy: Base your answer strictly on the provided context. Do NOT invent claims.\n"
-    "2. Inline Citations: Cite your sources inline using numbered brackets matching the Document index numbers, e.g. [1], [2].\n"
-    "3. Structure & Readability: Use clear markdown with bold headers, bullet points, and tables if comparing concepts.\n"
-    "   - Start with an **Executive Summary / Direct Answer**.\n"
-    "   - Follow with **Key Findings & In-Depth Analysis** explaining the core mechanisms, facts, and reasoning.\n"
-    "   - Include **Key Data Points, Metrics, or Comparative Insights**.\n"
-    "   - Conclude with **Strategic Takeaways / Nuances** if relevant.\n"
-    "4. References Section: At the end of the answer, list all cited sources as:\n"
-    "   ### 📚 References\n"
-    "   - [1] Filename (Page: X)\n"
-    "5. Suggested Inquiries: Always conclude with exactly 3 relevant, highly insightful follow-up questions under this exact header:\n"
+    "You are NeuraSearch, an advanced AI Research Scientist operating at the highest academic and benchmark standards.\n"
+    "Synthesize a rigorous, evidence-backed research report for the user's question based strictly on the provided context.\n\n"
+    "CRITICAL SCIENTIFIC & BENCHMARK RULES:\n"
+    "1. Epistemic Separation: Strictly separate:\n"
+    "   - **📌 Empirical Facts & Findings**: Direct quotes, exact metrics, data points, and measured values from sources.\n"
+    "   - **🔍 Methodological Analysis**: Evaluation of experimental setup, statistical validity, confounders, and dataset characteristics.\n"
+    "   - **💡 Interpretation & Practical Implications**: What the results mean, actionable takeaways, and real-world trade-offs.\n\n"
+    "2. Structured Evidence Matrix: Include a concise Markdown Evidence Matrix table comparing key claims:\n"
+    "   | Source | Claim | Key Evidence | Methodology | Metric / Result | Limitations & Biases |\n"
+    "   |---|---|---|---|---|---|\n\n"
+    "3. Contradiction & Counter-Evidence Audit: Actively look for conflicting results, dissenting viewpoints, or data weaknesses:\n"
+    "   - Under '### ⚠️ Contradictions & Disputed Findings', detail any discrepancies between sources or edge cases where the claims fail.\n\n"
+    "4. Statistical Rigor: Prefer specific numbers (precision, recall, F1, sample sizes, standard deviations, confidence intervals) over vague generalizations.\n\n"
+    "5. Grounded Numbered Citations: Cite sources inline using numbered brackets [1], [2] matching the Document index numbers.\n\n"
+    "6. Source Tier Classification & References:\n"
+    "   At the end, list references with their source tier (Tier 1: Primary/Peer-Reviewed, Tier 2: Review, Tier 3: Industry/Tech, Tier 4: Discovery/Web):\n"
+    "   ### 📚 References & Source Hierarchy\n"
+    "   - [1] Filename (Page: X) — [Tier X Classification]\n\n"
+    "7. Suggested Follow-ups: Conclude with exactly 3 sharp, context-aware inquiry questions under:\n"
     "   ### 💡 Suggested Follow-ups\n"
-    "   - What are the primary limitations mentioned in the study?\n"
-    "   - How does this approach compare with conventional methods?\n"
-    "   - What are the practical real-world implementation requirements?\n\n"
+    "   - Question 1\n"
+    "   - Question 2\n"
+    "   - Question 3\n\n"
     "{chat_history}"
     "CONTEXT DOCUMENTS:\n"
     "{formatted_context}\n\n"
     "USER RESEARCH QUESTION:\n"
     "{question}\n\n"
-    "COMPREHENSIVE RESEARCH SYNTHESIS:"
+    "SCIENTIFIC RESEARCH SYNTHESIS:"
 )
 
 
+def _classify_source_tier(source_name: str) -> str:
+    """Classify document source into the 4-tier source hierarchy."""
+    src_lower = source_name.lower()
+    if any(k in src_lower for k in [".pdf", "arxiv", "doi", ".gov", ".edu", "ieee", "nature", "science", "pubmed", "nih.gov", "github.com", "neurasearch"]):
+        return "Tier 1: Primary Source"
+    elif any(k in src_lower for k in ["review", "meta-analysis", "survey", "benchmark"]):
+        return "Tier 2: Systematic Review"
+    elif any(k in src_lower for k in ["report", "tech", "whitepaper", "doc", "official"]):
+        return "Tier 3: Industry & Technical"
+    else:
+        return "Tier 4: Discovery & Reference"
+
+
 def _build_evidence_packages(documents: List[dict], workspace_id: str) -> List[EvidencePackage]:
-    """Convert raw retrieved document dicts into structured EvidencePackages with citation indexes."""
+    """Convert raw retrieved document dicts into structured EvidencePackages with tier classification."""
     packages: List[EvidencePackage] = []
     for idx, doc in enumerate(documents, start=1):
         metadata = doc.get("metadata", {})
-        pkg: EvidencePackage = {
-            "content": doc.get("content", ""),
-            "source": (
-                metadata.get("source")
-                or metadata.get("title")
-                or metadata.get("filename")
-                or "Unknown"
-            ),
-            "page_number": int(metadata.get("page_number", 1)),
-            "score": float(doc.get("score", 0.5)),
-            "workspace_id": workspace_id,
-            "citation_index": idx
-        }
+        source_str = (
+            metadata.get("source")
+            or metadata.get("title")
+            or metadata.get("filename")
+            or "Unknown Source"
+        )
+        tier = _classify_source_tier(source_str)
+        pkg = EvidencePackage(
+            content=doc.get("content", ""),
+            source=source_str,
+            page_number=int(metadata.get("page_number", 1)),
+            score=float(doc.get("score", 0.5)),
+            workspace_id=workspace_id,
+            citation_index=idx,
+            source_tier=tier,
+            confidence_level="Strongly Supported" if tier == "Tier 1: Primary Source" else "Likely"
+        )
         packages.append(pkg)
     return packages
 
 
 def _format_context(packages: List[EvidencePackage]) -> str:
-    """Format EvidencePackages for the LLM prompt with clear citation index markers."""
+    """Format EvidencePackages for the LLM prompt with citation indexes and source tiers."""
     parts: List[str] = []
     for pkg in packages:
         parts.append(
-            f"--- Document [{pkg['citation_index']}] (Source: {pkg['source']}, Page: {pkg['page_number']}) ---\n"
-            f"{pkg['content']}"
+            f"--- Document [{pkg.citation_index}] (Source: {pkg.source}, Page: {pkg.page_number}, {pkg.source_tier}) ---\n"
+            f"{pkg.content}"
         )
     return "\n\n".join(parts)
 
 
 def _extract_sources(packages: List[EvidencePackage]) -> List[str]:
-    """Extract deduplicated list of source filenames from packages."""
+    """Extract deduplicated list of source filenames with tier metadata."""
     seen = set()
     sources = []
     for pkg in packages:
-        src = pkg["source"]
+        src = f"{pkg.source} ({pkg.source_tier})"
         if src not in seen:
             seen.add(src)
             sources.append(src)
@@ -91,20 +117,20 @@ def _extract_sources(packages: List[EvidencePackage]) -> List[str]:
 
 
 async def generator(state: CRAGState) -> dict:
-    """Generate structured research answer from final_context with citations."""
+    """Generate structured, evidence-backed research report from context with citations."""
     question = state["question"]
     final_context = state.get("final_context", [])
     workspace_id = state.get("workspace_id", settings.default_workspace_id)
     messages = state.get("messages", [])
 
     logger.info(
-        "Generator — producing answer from %d context chunks for: '%s' under workspace=%s",
+        "Generator — producing research synthesis from %d context chunks for: '%s' (workspace=%s)",
         len(final_context),
         question,
         workspace_id
     )
 
-    # Format chat history (up to last 3 turns of user/assistant interaction)
+    # Format chat history
     chat_history_str = ""
     if messages:
         recent_messages = messages[-6:]
@@ -120,12 +146,12 @@ async def generator(state: CRAGState) -> dict:
         logger.warning("No context available — generating fallback response")
         return {
             "generation": (
-                "### 🔍 No Direct Matches Found\n\n"
-                "I couldn't locate relevant information in the uploaded workspace documents to answer this specific question. "
-                "You can:\n"
-                "- Upload additional research papers or TXT files.\n"
-                "- Enable web search fallback in `.env` by providing a Tavily API key.\n"
-                "- Rephrase your query to use more general keywords."
+                "### 🔍 No Grounded Evidence Found in Workspace\n\n"
+                "The research pipeline could not locate verified document chunks for this query in the active index.\n\n"
+                "**Recommended Actions:**\n"
+                "- Upload original research papers, CSV datasets, or PDF reports into the workspace.\n"
+                "- Enable Tavily Web Search fallback in `.env` for real-time external discovery.\n"
+                "- Rephrase your question with core technical terms."
             ),
             "sources": [],
             "evidence_packages": [],
@@ -133,7 +159,6 @@ async def generator(state: CRAGState) -> dict:
         }
 
     try:
-        # Build evidence packages contract
         packages = _build_evidence_packages(final_context, workspace_id)
         formatted_context = _format_context(packages)
         sources = _extract_sources(packages)
@@ -147,23 +172,23 @@ async def generator(state: CRAGState) -> dict:
         response = await llm.ainvoke(prompt)
         generation = response.content.strip()
 
-        logger.info("Generated answer (%d chars) with %d sources",
+        logger.info("Generated evidence-backed synthesis (%d chars) with %d sources",
                     len(generation), len(sources))
 
         return {
             "generation": generation,
             "sources": sources,
-            "evidence_packages": packages,
-            "steps_taken": ["Generating deep research answer with grounded citations..."],
+            "evidence_packages": [pkg.model_dump() for pkg in packages],
+            "steps_taken": ["Generating scientific synthesis with Evidence Matrix and Source Tiering..."],
         }
 
     except Exception as exc:
         logger.error("Generator node failed: %s", exc, exc_info=True)
         return {
             "generation": (
-                f"### ⚠️ Generation Notice\n\n"
-                f"An error occurred while synthesizing the response: `{exc}`. "
-                "Please verify your model configuration or try re-submitting your question."
+                f"### ⚠️ Research Synthesis Error\n\n"
+                f"An error occurred during inference: `{exc}`. "
+                "Please verify active model connectivity in Settings."
             ),
             "sources": [],
             "evidence_packages": [],
@@ -171,4 +196,5 @@ async def generator(state: CRAGState) -> dict:
         }
 
 
+# Alias for backwards compatibility
 generator_node = generator

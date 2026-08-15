@@ -1412,10 +1412,36 @@ async def get_analytics(context: WorkspaceContext = Depends(get_workspace_contex
         raise HTTPException(status_code=500, detail=f"Failed to compile analytics: {str(e)}")
 
 
+# In-memory storage for latest 10-Dimension Benchmark results
+latest_benchmark_results: Optional[dict] = None
+
+
 @v1_router.get("/eval/results")
 async def get_eval_results():
     """Get the latest stored RAGAS evaluation results."""
     return latest_eval_results
+
+
+@v1_router.get("/eval/benchmark/suite")
+async def run_benchmark_suite_endpoint():
+    """Execute the standardized 10-dimension AI Research & Data Analysis Benchmark suite."""
+    global latest_benchmark_results
+    from eval.benchmark_suite import run_standard_benchmark
+    try:
+        results = await run_standard_benchmark()
+        latest_benchmark_results = results.model_dump()
+        return latest_benchmark_results
+    except Exception as e:
+        logger.error("Benchmark suite execution failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Benchmark failed: {str(e)}")
+
+
+@v1_router.get("/eval/benchmark/results")
+async def get_benchmark_results_endpoint():
+    """Fetch the latest stored benchmark results and scoring matrix."""
+    if not latest_benchmark_results:
+        return {"status": "pending", "message": "No benchmark has been run yet."}
+    return latest_benchmark_results
 
 
 @app.get("/health")
