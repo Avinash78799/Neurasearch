@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Brain, Zap, Sparkles, MessageSquare, Info, BookOpen, Search, 
-  BarChart2, Cpu, Database, Laptop, ShieldCheck, LogOut, Plus
+  BarChart2, Cpu, Database, Laptop, ShieldCheck, LogOut, Plus, HelpCircle
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -28,9 +28,10 @@ import GitHubModal from "./components/GitHubModal";
 import DocPickerModal from "./components/DocPickerModal";
 import ModelSettingsModal from "./components/ModelSettingsModal";
 import Visualizer from "./components/Visualizer";
+import SupportHub from "./components/SupportHub";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "reader" | "research" | "analytics" | "knowledge" | "search"
+  const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "reader" | "research" | "analytics" | "knowledge" | "search" | "support"
   const [proMode, setProMode] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
 
@@ -63,7 +64,7 @@ export default function App() {
         };
       }
       const response = await originalFetch(url, options);
-      if (response.status === 401 && !url.includes("/token") && !url.includes("/hardware/specs")) {
+      if (response.status === 401 && !url.includes("/token") && !url.includes("/hardware/specs") && !url.includes("/support")) {
         localStorage.removeItem("token");
         setIsAuthenticated(false);
       }
@@ -422,6 +423,7 @@ export default function App() {
               { id: "analytics", label: "Analytics & Graph", icon: BarChart2 },
               { id: "knowledge", label: "Knowledge Notes", icon: Database },
               { id: "search", label: "Universal Search", icon: Search },
+              { id: "support", label: "Support & Care Hub", icon: HelpCircle },
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -485,6 +487,7 @@ export default function App() {
               {activeTab === "analytics" && "Knowledge Graph & Metrics"}
               {activeTab === "knowledge" && "Knowledge Notes"}
               {activeTab === "search" && "Universal Search"}
+              {activeTab === "support" && "Support, Maintenance & Pro Tips Hub"}
             </span>
           </div>
 
@@ -498,6 +501,15 @@ export default function App() {
             >
               <Cpu className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>{activeProfileInfo}</span>
+            </button>
+
+            {/* Quick Support Hub trigger */}
+            <button
+              onClick={() => setActiveTab("support")}
+              className={`p-1.5 rounded-lg border transition-all ${activeTab === "support" ? "bg-[var(--text-primary)] text-[var(--bg-primary)] border-transparent" : "border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)]"}`}
+              title="Open Support, Maintenance & Tips"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
             </button>
 
             {/* GitHub Import Button */}
@@ -694,6 +706,14 @@ export default function App() {
             <div className="w-full h-full">
               <UniversalSearch />
             </div>
+          )}
+
+          {/* TAB 8: Support & Care Hub */}
+          {activeTab === "support" && (
+            <SupportHub onApplyQueryTemplate={(prompt) => {
+              setActiveTab("qa");
+              handleSubmitQuery(prompt);
+            }} />
           )}
         </div>
 

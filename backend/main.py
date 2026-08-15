@@ -97,7 +97,7 @@ async def neurasearch_error_handler(request: Request, exc: NeuraSearchError):
 async def jwt_auth_middleware(request: Request, call_next):
     # Exclude public paths
     path = request.url.path
-    if path in ["/token", "/health", "/"] or path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/api/v1/hardware"):
+    if path in ["/token", "/health", "/"] or path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/api/v1/hardware") or path.startswith("/api/v1/support"):
         return await call_next(request)
         
     # OPTIONS requests (preflight CORS) should skip auth
@@ -1513,6 +1513,55 @@ async def get_benchmark_results_endpoint():
     if not latest_benchmark_results:
         return {"status": "pending", "message": "No benchmark has been run yet."}
     return latest_benchmark_results
+
+
+# ── Support, Diagnostics, and Maintenance Endpoints ──────────────────
+from support.support_service import SupportService
+
+class SupportTicketRequest(BaseModel):
+    subject: str
+    category: str
+    message: str
+    user_email: Optional[str] = None
+    system_info: Optional[dict] = None
+
+@v1_router.get("/support/diagnostics")
+async def get_diagnostics_endpoint(context: WorkspaceContext = Depends(get_workspace_context)):
+    """Retrieve full system hardware, database, index, and model health diagnostics."""
+    return SupportService.get_full_diagnostics(context=context)
+
+@v1_router.post("/support/maintenance/reindex")
+async def reindex_endpoint(context: WorkspaceContext = Depends(get_workspace_context)):
+    """Self-healing action: Rebuild BM25 index and verify vectorstore synchronization."""
+    result = SupportService.run_reindex(context=context)
+    if result.get("status") == "error":
+        raise HTTPException(status_code=500, detail=result.get("detail"))
+    return result
+
+@v1_router.post("/support/maintenance/vacuum")
+async def vacuum_endpoint():
+    """Self-healing action: Optimize SQLite database and reclaim unfragmented pages."""
+    result = SupportService.run_vacuum_db()
+    if result.get("status") == "error":
+        raise HTTPException(status_code=500, detail=result.get("detail"))
+    return result
+
+@v1_router.post("/support/ticket")
+async def create_support_ticket_endpoint(req: SupportTicketRequest):
+    """Log a user customer care ticket or feedback request."""
+    return SupportService.create_support_ticket(
+        subject=req.subject,
+        category=req.category,
+        message=req.message,
+        user_email=req.user_email,
+        system_info=req.system_info
+    )
+
+@v1_router.get("/support/tickets")
+async def list_support_tickets_endpoint():
+    """List submitted support tickets."""
+    return {"tickets": SupportService.list_support_tickets()}
+
 
 
 @app.get("/health")
