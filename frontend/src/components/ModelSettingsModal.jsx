@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Cpu, Key, Zap, Check, Loader2, X, Laptop, ShieldCheck } from "lucide-react";
+import { Cpu, Key, Check, Loader2, X, Laptop } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated }) {
@@ -99,20 +99,20 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-xl glass-card rounded-2xl border border-[var(--border-primary)] shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto bg-[var(--bg-card)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--accent-primary)]">
+            <div className="w-8 h-8 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Hardware & Model Configuration</h3>
-              <p className="text-[10px] text-[var(--text-muted)]">Automatic hardware tuning & model providers</p>
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Hardware & Model Engine</h3>
+              <p className="text-[10px] text-[var(--text-muted)]">Automatic hardware adaptation & LLM provider keys</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <button onClick={onClose} className="p-1 rounded-lg text-[var(--text-muted)] hover:text-turquoise-400">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -122,10 +122,10 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
           <div className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
-                <Laptop className="w-4 h-4 text-[var(--accent-primary)]" />
+                <Laptop className="w-4 h-4 text-turquoise-400" />
                 <span>Detected System Hardware</span>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-primary)]">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-card)] text-turquoise-400 border border-turquoise-500/30">
                 Auto-Detected
               </span>
             </div>
@@ -133,7 +133,7 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
               <div className="p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-primary)]">
                 <span className="text-[10px] text-[var(--text-muted)] block">GPU & VRAM</span>
                 <span className="font-semibold text-[var(--text-primary)] truncate block">{hardwareSpecs.gpu_name}</span>
-                <span className="font-mono text-[var(--accent-primary)] text-[10px]">{hardwareSpecs.gpu_vram_gb} GB VRAM</span>
+                <span className="font-mono text-turquoise-400 text-[10px]">{hardwareSpecs.gpu_vram_gb} GB VRAM</span>
               </div>
               <div className="p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-primary)]">
                 <span className="text-[10px] text-[var(--text-muted)] block">System RAM</span>
@@ -142,7 +142,7 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
               </div>
               <div className="p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-primary)]">
                 <span className="text-[10px] text-[var(--text-muted)] block">Recommended</span>
-                <span className="font-semibold text-emerald-500 capitalize block">{hardwareSpecs.recommended_profile} Profile</span>
+                <span className="font-semibold text-turquoise-400 capitalize block">{hardwareSpecs.recommended_profile} Profile</span>
                 <span className="text-[10px] text-[var(--text-muted)] font-mono">Zero Freeze</span>
               </div>
             </div>
@@ -166,13 +166,13 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
               disabled={isApplyingProfile}
               className={`p-3 rounded-xl border text-left transition-all ${
                 activeProfileId === "eco"
-                  ? "bg-emerald-500/10 border-emerald-500/40 text-[var(--text-primary)] shadow-sm"
-                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-emerald-500/30"
+                  ? "bg-turquoise-500/15 border-turquoise-400 text-[var(--text-primary)] shadow-sm shadow-turquoise-500/10"
+                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-turquoise-500/40"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-emerald-500">Eco Profile</span>
-                {activeProfileId === "eco" && <Check className="w-3.5 h-3.5 text-emerald-500" />}
+                <span className="text-xs font-semibold text-turquoise-400">Eco Profile</span>
+                {activeProfileId === "eco" && <Check className="w-3.5 h-3.5 text-turquoise-400" />}
               </div>
               <p className="text-[10px] text-[var(--text-muted)]">4GB VRAM / 8GB RAM</p>
               <div className="mt-2 text-[10px] font-mono text-[var(--text-muted)]">
@@ -189,13 +189,13 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
               disabled={isApplyingProfile}
               className={`p-3 rounded-xl border text-left transition-all ${
                 activeProfileId === "balanced"
-                  ? "bg-amber-500/10 border-amber-500/40 text-[var(--text-primary)] shadow-sm"
-                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-amber-500/30"
+                  ? "bg-amber-500/15 border-amber-400 text-[var(--text-primary)] shadow-sm"
+                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-amber-500/40"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-amber-500">Balanced</span>
-                {activeProfileId === "balanced" && <Check className="w-3.5 h-3.5 text-amber-500" />}
+                <span className="text-xs font-semibold text-amber-400">Balanced</span>
+                {activeProfileId === "balanced" && <Check className="w-3.5 h-3.5 text-amber-400" />}
               </div>
               <p className="text-[10px] text-[var(--text-muted)]">6–8GB VRAM Gaming</p>
               <div className="mt-2 text-[10px] font-mono text-[var(--text-muted)]">
@@ -212,13 +212,13 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
               disabled={isApplyingProfile}
               className={`p-3 rounded-xl border text-left transition-all ${
                 activeProfileId === "turbo"
-                  ? "bg-brand-500/10 border-brand-500/40 text-[var(--text-primary)] shadow-sm"
-                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-brand-500/30"
+                  ? "bg-rose-500/15 border-rose-400 text-[var(--text-primary)] shadow-sm"
+                  : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-rose-500/40"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-brand-500">Cloud Turbo</span>
-                {activeProfileId === "turbo" && <Check className="w-3.5 h-3.5 text-brand-500" />}
+                <span className="text-xs font-semibold text-rose-400">Cloud Turbo</span>
+                {activeProfileId === "turbo" && <Check className="w-3.5 h-3.5 text-rose-400" />}
               </div>
               <p className="text-[10px] text-[var(--text-muted)]">Groq 70B / Workstation</p>
               <div className="mt-2 text-[10px] font-mono text-[var(--text-muted)]">
@@ -249,7 +249,7 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
                 onClick={() => setProvider(p.id)}
                 className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
                   provider === p.id
-                    ? "bg-[var(--accent-primary)] text-white border-[var(--accent-primary)]"
+                    ? "bg-turquoise-500/20 text-turquoise-300 border-turquoise-400 font-semibold"
                     : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -260,48 +260,48 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
 
           {provider === "groq" && (
             <div className="space-y-1.5 animate-fade-in">
-              <label className="text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-[var(--accent-primary)]" /> Groq API Key (Free Tier)
+              <label className="text-xs font-medium text-turquoise-300 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5" /> Groq API Key (Free Tier)
               </label>
               <input
                 type="password"
                 value={groqKey}
                 onChange={e => setGroqKey(e.target.value)}
                 placeholder="gsk_..."
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] font-mono"
+                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-turquoise-400 font-mono"
               />
               <p className="text-[10px] text-[var(--text-muted)]">
-                Get a free key instantly from <a href="https://console.groq.com" target="_blank" rel="noreferrer" className="text-[var(--accent-primary)] underline">console.groq.com</a>.
+                Get a free key instantly from <a href="https://console.groq.com" target="_blank" rel="noreferrer" className="text-turquoise-400 underline">console.groq.com</a>.
               </p>
             </div>
           )}
 
           {provider === "openai" && (
             <div className="space-y-1.5 animate-fade-in">
-              <label className="text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-[var(--accent-primary)]" /> OpenAI API Key
+              <label className="text-xs font-medium text-turquoise-300 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5" /> OpenAI API Key
               </label>
               <input
                 type="password"
                 value={openaiKey}
                 onChange={e => setOpenaiKey(e.target.value)}
                 placeholder="sk-..."
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] font-mono"
+                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-turquoise-400 font-mono"
               />
             </div>
           )}
 
           {provider === "deepseek" && (
             <div className="space-y-1.5 animate-fade-in">
-              <label className="text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-[var(--accent-primary)]" /> DeepSeek API Key
+              <label className="text-xs font-medium text-turquoise-300 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5" /> DeepSeek API Key
               </label>
               <input
                 type="password"
                 value={deepseekKey}
                 onChange={e => setDeepseekKey(e.target.value)}
                 placeholder="sk-..."
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] font-mono"
+                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-turquoise-400 font-mono"
               />
             </div>
           )}
@@ -314,7 +314,7 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
                 value={ollamaModel}
                 onChange={e => setOllamaModel(e.target.value)}
                 placeholder="llama3.2:3b or llama3.1:8b"
-                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent-primary)]"
+                className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-turquoise-400"
               />
             </div>
           )}
@@ -322,9 +322,9 @@ export default function ModelSettingsModal({ isOpen, onClose, onSettingsUpdated 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium text-xs transition-all shadow-sm disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gradient-to-r from-turquoise-500 to-teal-600 hover:from-turquoise-400 hover:to-teal-500 text-black font-bold text-xs transition-all shadow-md shadow-turquoise-500/20 disabled:opacity-50"
           >
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-black" /> : <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" />}
             Save & Apply Configuration
           </button>
         </form>

@@ -383,20 +383,20 @@ export default function App() {
       <Toaster position="top-right" />
 
       {/* ─── Clean Minimalist Sidebar ─── */}
-      <aside className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] flex flex-col justify-between z-20">
+      <aside className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] flex flex-col justify-between z-20 shadow-xl">
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Logo & Brand Header */}
           <div className="px-4 py-3.5 border-b border-[var(--border-primary)] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center text-white font-semibold shadow-sm">
-                <Brain className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-turquoise-500 to-teal-700 flex items-center justify-center text-black font-black shadow-md shadow-turquoise-500/20">
+                <Brain className="w-4 h-4 text-black stroke-[2.5]" />
               </div>
               <div>
-                <h1 className="text-sm font-semibold tracking-tight text-[var(--text-primary)] leading-tight">
+                <h1 className="text-sm font-bold tracking-tight text-[var(--text-primary)] leading-tight">
                   NeuraSearch
                 </h1>
-                <p className="text-[10px] text-[var(--text-muted)] font-normal leading-none mt-0.5">
-                  Research Studio
+                <p className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
+                  AI Research Studio
                 </p>
               </div>
             </div>
@@ -406,10 +406,10 @@ export default function App() {
           <div className="px-3 pt-3 pb-2">
             <button
               onClick={handleCreateNewChat}
-              className="w-full py-2 px-3 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.99]"
+              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-turquoise-500 to-teal-600 hover:from-turquoise-400 hover:to-teal-500 text-xs font-bold text-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-turquoise-500/20 active:scale-[0.99]"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Thread</span>
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>New Research Thread</span>
             </button>
           </div>
 
@@ -431,11 +431,11 @@ export default function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
                     isActive 
-                      ? "bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold" 
+                      ? "bg-turquoise-500/15 text-turquoise-400 font-semibold border border-turquoise-500/25" 
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-turquoise-400" : "text-[var(--text-muted)]"}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -477,7 +477,7 @@ export default function App() {
         {/* Top Header Bar */}
         <header className="h-[52px] bg-[var(--bg-surface)] border-b border-[var(--border-primary)] flex items-center justify-between px-6 z-10">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-turquoise-400">
               {activeTab === "qa" && "Research Assistant"}
               {activeTab === "insights" && "Document Insights"}
               {activeTab === "reader" && "Reading & Analysis Studio"}
@@ -493,17 +493,17 @@ export default function App() {
             {/* Hardware Profile Button */}
             <button
               onClick={() => setIsModelModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-turquoise-400 text-xs font-semibold text-[var(--text-primary)] transition-all shadow-sm"
               title="Hardware Detection & Model Settings"
             >
-              <Cpu className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+              <Cpu className="w-3.5 h-3.5 text-turquoise-400" />
               <span>{activeProfileInfo}</span>
             </button>
 
             {/* GitHub Import Button */}
             <button
               onClick={() => setIsGithubModalOpen(true)}
-              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-turquoise-400 transition-all"
               title="Import GitHub Repository"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -515,7 +515,7 @@ export default function App() {
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-rose-500 transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-rose-400 transition-all"
               title="Logout"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -547,7 +547,7 @@ export default function App() {
               {/* Scoped Document Context Pills */}
               {selectedDocs.length > 0 && (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] animate-fade-in">
-                  <span className="font-semibold text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                  <span className="font-semibold text-[10px] uppercase tracking-wider text-turquoise-400">
                     Scoped Files ({selectedDocs.length}):
                   </span>
                   <div className="flex flex-wrap gap-1">
@@ -559,7 +559,7 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => setSelectedDocs([])}
-                    className="text-[11px] text-rose-500 hover:underline ml-auto font-medium"
+                    className="text-[11px] text-rose-400 hover:underline ml-auto font-medium"
                   >
                     Clear
                   </button>
@@ -581,12 +581,12 @@ export default function App() {
                         key={idx}
                         className={`flex gap-4 p-4.5 rounded-xl border transition-all animate-fade-in ${
                           isUser
-                            ? "bg-[var(--bg-secondary)] border-[var(--border-primary)] justify-end"
-                            : "glass-card border-[var(--border-primary)]"
+                            ? "bg-turquoise-500/10 border-turquoise-500/25 justify-end"
+                            : "glass-card border-[var(--border-primary)] shadow-sm"
                         }`}
                       >
                         <div className="max-w-3xl space-y-2">
-                          <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isUser ? "text-[var(--accent-primary)] text-right" : "text-[var(--text-muted)]"}`}>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isUser ? "text-turquoise-400 text-right" : "text-rose-400"}`}>
                             {isUser ? "You" : "NeuraSearch"}
                           </span>
                           <div className="prose-neura text-sm leading-relaxed">
@@ -633,10 +633,10 @@ export default function App() {
               {/* Ready State Screen */}
               {messages.length === 0 && !isLoading && !result && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center border border-[var(--border-primary)] mb-3 text-[var(--accent-primary)] shadow-sm">
-                    <Zap className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center border border-turquoise-500/30 mb-3 text-turquoise-400 shadow-md shadow-turquoise-500/10">
+                    <Zap className="w-6 h-6 stroke-[2.5]" />
                   </div>
-                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                  <h2 className="text-sm font-bold text-[var(--text-primary)] mb-1">
                     Workspace Ready
                   </h2>
                   <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">

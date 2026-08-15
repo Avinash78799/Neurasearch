@@ -2,77 +2,85 @@
 
 /* ──────────────────────────── Theme Variables ──────────────────────────── */
 :root {
-  /* Minimalist Obsidian Dark Theme (Professional & Sleek) */
-  --bg-primary: #090a0f;
-  --bg-secondary: #11141c;
-  --bg-surface: #141824;
-  --bg-surface-hover: #1c2233;
-  --bg-card: #121622;
-  --bg-input: #10141f;
+  /* Reddish-Black Mix Fade with Turquoise Accents (Dark Mode) */
+  --bg-primary: #09070a;
+  --bg-secondary: #120c14;
+  --bg-surface: #18101a;
+  --bg-surface-hover: #221626;
+  --bg-card: #150e18;
+  --bg-input: #120b15;
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #fdfafc;
+  --text-secondary: #d1bfc9;
+  --text-muted: #8d7584;
   
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
+  --border-primary: rgba(244, 63, 94, 0.12);
+  --border-hover: rgba(20, 184, 166, 0.4);
   
-  --accent-primary: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent-primary: #14b8a6;       /* Electric Turquoise */
+  --accent-hover: #0d9488;         /* Deep Turquoise */
+  --accent-soft: rgba(20, 184, 166, 0.12);
+  --accent-glow: rgba(20, 184, 166, 0.25);
   
-  --accent-cyan: #0284c7;
+  --accent-crimson: #e11d48;       /* Crimson Red */
+  --accent-cyan: #06b6d4;          /* Cyan */
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
-  --accent-rose: #ef4444;
+  --accent-rose: #f43f5e;
   
-  --shadow-primary: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
-  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  --shadow-primary: 0 8px 30px 0 rgba(0, 0, 0, 0.5);
+  --shadow-subtle: 0 2px 6px 0 rgba(0, 0, 0, 0.3);
   
-  --scrollbar-track: #090a0f;
-  --scrollbar-thumb: #1e293b;
+  --scrollbar-track: #09070a;
+  --scrollbar-thumb: #291b2e;
 }
 
 [data-theme='light'] {
-  /* Minimalist Paper White Light Theme (Clean & Editorial) */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #f1f5f9;
+  /* Minimalist Rose-Slate & Deep Turquoise (Light Mode) */
+  --bg-primary: #fbf9fa;
+  --bg-secondary: #f4eef2;
   --bg-surface: #ffffff;
-  --bg-surface-hover: #f8fafc;
+  --bg-surface-hover: #f9f5f8;
   --bg-card: #ffffff;
   --bg-input: #ffffff;
   
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-primary: #170d18;
+  --text-secondary: #4d3a4b;
+  --text-muted: #786475;
   
-  --border-primary: #e2e8f0;
-  --border-hover: #cbd5e1;
+  --border-primary: #e6dde3;
+  --border-hover: #14b8a6;
   
-  --accent-primary: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.08);
+  --accent-primary: #0d9488;       /* Deep Turquoise */
+  --accent-hover: #0f766e;
+  --accent-soft: rgba(13, 148, 136, 0.08);
+  --accent-glow: rgba(13, 148, 136, 0.18);
   
+  --accent-crimson: #e11d48;
   --accent-cyan: #0284c7;
   --accent-emerald: #059669;
   --accent-amber: #d97706;
   --accent-rose: #e11d48;
   
-  --shadow-primary: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
-  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+  --shadow-primary: 0 4px 20px 0 rgba(0, 0, 0, 0.06);
+  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   
-  --scrollbar-track: #f8fafc;
-  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-track: #fbf9fa;
+  --scrollbar-thumb: #d6cbd2;
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ──────────────────────────── Typography & Global ──────────────────────────── */
+/* ──────────────────────────── Typography & Background ──────────────────────────── */
 
 body {
   background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(225, 29, 72, 0.09) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(20, 184, 166, 0.07) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(190, 18, 60, 0.06) 0px, transparent 55%);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -131,14 +139,16 @@ body {
   }
 
   .btn-primary {
-    background-color: var(--accent-primary);
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
     color: #ffffff;
     font-weight: 500;
     transition: all 0.15s ease;
+    box-shadow: 0 2px 10px rgba(20, 184, 166, 0.25);
   }
 
   .btn-primary:hover {
-    background-color: var(--accent-hover);
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%);
+    box-shadow: 0 4px 14px rgba(20, 184, 166, 0.35);
   }
 
   .prose-neura {
@@ -157,7 +167,7 @@ body {
 
   .prose-neura code {
     background: var(--bg-secondary);
-    color: var(--text-secondary);
+    color: var(--accent-primary);
     padding: 0.12em 0.35em;
     border-radius: 0.25rem;
     font-size: 0.85em;

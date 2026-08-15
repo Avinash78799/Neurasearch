@@ -43,7 +43,7 @@ export default function SearchBar({
   return (
     <div className="space-y-2 relative w-full">
       <form onSubmit={handleSubmit} className="relative">
-        <div className="relative glass-card rounded-xl flex items-center transition-all duration-150 border border-[var(--border-primary)] bg-[var(--bg-surface)] px-2 py-1.5 focus-within:border-[var(--accent-primary)]">
+        <div className="relative glass-card rounded-xl flex items-center transition-all duration-150 border border-[var(--border-primary)] bg-[var(--bg-surface)] px-2 py-1.5 focus-within:border-[var(--accent-primary)] shadow-md">
           {/* Action Palette Button (+) */}
           <div className="relative" ref={menuRef}>
             <button
@@ -51,8 +51,8 @@ export default function SearchBar({
               onClick={() => setMenuOpen(!menuOpen)}
               className={`p-2 rounded-lg transition-all duration-150 flex items-center justify-center ${
                 menuOpen 
-                  ? "bg-[var(--accent-primary)] text-white" 
-                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-primary)]"
+                  ? "bg-turquoise-600 text-white shadow-sm shadow-turquoise-500/20" 
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-turquoise-400 border border-[var(--border-primary)]"
               }`}
               title="Add tools: Web Search, Deep Research, Visualizer, GitHub, Models"
             >
@@ -61,9 +61,9 @@ export default function SearchBar({
 
             {/* Feature Action Menu Popover */}
             {menuOpen && (
-              <div className="absolute left-0 bottom-full mb-2 w-72 glass-card rounded-xl border border-[var(--border-primary)] shadow-xl p-1.5 z-50 animate-slide-up bg-[var(--bg-card)] space-y-0.5">
+              <div className="absolute left-0 bottom-full mb-2 w-72 glass-card rounded-xl border border-[var(--border-primary)] shadow-2xl p-1.5 z-50 animate-slide-up bg-[var(--bg-card)] space-y-0.5">
                 <div className="px-2.5 py-1.5 border-b border-[var(--border-primary)]">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-turquoise-400">
                     Capabilities & Tools
                   </span>
                 </div>
@@ -77,11 +77,11 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <BookOpen className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)]">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300">
                       Add from library
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Scope search to specific files</div>
@@ -97,13 +97,13 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <Globe className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300 flex items-center justify-between">
                       <span>Web search</span>
-                      {webSearchActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-500 font-mono font-medium">ON</span>}
+                      {webSearchActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-turquoise-500/20 text-turquoise-300 font-mono font-bold">ON</span>}
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Real-time news & sources</div>
                   </div>
@@ -118,13 +118,13 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <Sparkles className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300 flex items-center justify-between">
                       <span>Deep research</span>
-                      {deepResearchActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand-500/15 text-brand-500 font-mono font-medium">ON</span>}
+                      {deepResearchActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-turquoise-500/20 text-turquoise-300 font-mono font-bold">ON</span>}
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Multi-query comprehensive report</div>
                   </div>
@@ -139,13 +139,13 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <BarChart2 className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300 flex items-center justify-between">
                       <span>Visualize</span>
-                      {visualizeActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-500 font-mono font-medium">ON</span>}
+                      {visualizeActive && <span className="text-[9px] px-1.5 py-0.2 rounded bg-turquoise-500/20 text-turquoise-300 font-mono font-bold">ON</span>}
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Interactive charts & diagrams</div>
                   </div>
@@ -160,11 +160,11 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <Cpu className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)]">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300">
                       AI Platform & Hardware
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Groq 70B, Ollama, GPT-4o</div>
@@ -180,13 +180,13 @@ export default function SearchBar({
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left hover:bg-[var(--bg-surface-hover)] transition-colors group border-t border-[var(--border-primary)] pt-1.5"
                 >
-                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-secondary)]">
+                  <div className="w-7 h-7 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-turquoise-400">
                     <Github className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[var(--text-primary)] flex items-center justify-between">
+                    <div className="text-xs font-medium text-[var(--text-primary)] group-hover:text-turquoise-300 flex items-center justify-between">
                       <span>GitHub Integration</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-[var(--bg-secondary)] text-[var(--text-muted)] font-mono">IMPORT</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-turquoise-500/10 text-turquoise-400 font-mono">IMPORT</span>
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">Import repo code and issues</div>
                   </div>
@@ -198,17 +198,17 @@ export default function SearchBar({
           {/* Active Mode Badges */}
           <div className="flex items-center gap-1 pl-1.5">
             {webSearchActive && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-500 font-medium animate-fade-in">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-turquoise-500/15 border border-turquoise-500/30 text-[11px] text-turquoise-300 font-semibold animate-fade-in">
                 <Globe className="w-3 h-3" /> Web
               </span>
             )}
             {deepResearchActive && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-500/10 border border-brand-500/20 text-[11px] text-brand-500 font-medium animate-fade-in">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-[11px] text-rose-300 font-semibold animate-fade-in">
                 <Sparkles className="w-3 h-3" /> Deep Research
               </span>
             )}
             {visualizeActive && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-500 font-medium animate-fade-in">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-turquoise-500/15 border border-turquoise-500/30 text-[11px] text-turquoise-300 font-semibold animate-fade-in">
                 <BarChart2 className="w-3 h-3" /> Visualize
               </span>
             )}
@@ -235,12 +235,12 @@ export default function SearchBar({
             <button
               type="submit"
               disabled={isLoading || !value.trim()}
-              className="relative flex items-center justify-center w-8.5 h-8.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed active:scale-95"
+              className="relative flex items-center justify-center w-8.5 h-8.5 rounded-lg bg-gradient-to-r from-turquoise-500 to-turquoise-600 hover:from-turquoise-400 hover:to-turquoise-500 text-black font-bold transition-all shadow-md shadow-turquoise-500/20 disabled:opacity-20 disabled:cursor-not-allowed active:scale-95"
             >
               {isLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
               ) : (
-                <ArrowRight className="w-3.5 h-3.5 text-white" />
+                <ArrowRight className="w-3.5 h-3.5 text-black stroke-[2.5]" />
               )}
             </button>
           </div>
@@ -250,12 +250,12 @@ export default function SearchBar({
       {/* Helper Line */}
       <div className="flex items-center justify-between px-1 text-[11px] text-[var(--text-muted)]">
         <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span>Press &apos;+&apos; to toggle Web search, Deep research, Visualizer, GitHub, or Hardware profiles.</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-turquoise-400 animate-pulse" />
+          <span>Click &apos;+&apos; to toggle Web search, Deep research, Visualizer, GitHub, or Hardware profiles.</span>
         </div>
         <div className="font-mono text-[10px]">
           <span>Speed: </span>
-          <span className="text-[var(--text-secondary)] font-medium">{proMode ? "Instant LPU / Turbo" : "GPU Accelerated"}</span>
+          <span className="text-turquoise-400 font-semibold">{proMode ? "Instant LPU / Turbo" : "GPU Accelerated"}</span>
         </div>
       </div>
     </div>
