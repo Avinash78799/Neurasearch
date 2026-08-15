@@ -3,7 +3,7 @@ import {
   HelpCircle, Lightbulb, Wrench, Headphones, CheckCircle2, 
   AlertTriangle, RefreshCw, Cpu, Database, Server, HardDrive, 
   Send, ChevronDown, ChevronUp, Copy, Check, Download, ShieldCheck, 
-  Zap, Sparkles, Terminal, Activity, FileText
+  Zap, Sparkles, Terminal, Activity, FileText, Lock, Unlock, KeyRound
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -12,6 +12,14 @@ export default function SupportHub({ onApplyQueryTemplate }) {
   const [diagnostics, setDiagnostics] = useState(null);
   const [loadingDiag, setLoadingDiag] = useState(false);
   const [activeAction, setActiveAction] = useState(null);
+
+  // Developer Authentication Gate States
+  const [isDevAuthenticated, setIsDevAuthenticated] = useState(
+    sessionStorage.getItem("is_developer") === "true"
+  );
+  const [devUsername, setDevUsername] = useState("admin");
+  const [devPassword, setDevPassword] = useState("");
+  const [verifyingDev, setVerifyingDev] = useState(false);
 
   // Ticket Form States
   const [ticketSubject, setTicketSubject] = useState("");
@@ -25,8 +33,22 @@ export default function SupportHub({ onApplyQueryTemplate }) {
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [copiedPromptId, setCopiedPromptId] = useState(null);
 
+  // Fetch Current User Role on mount
+  useEffect(() => {
+    fetch("/api/v1/auth/me")
+      .then(r => r.json())
+      .then(data => {
+        if (data.role === "developer" || data.username === "admin") {
+          setIsDevAuthenticated(true);
+          sessionStorage.setItem("is_developer", "true");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch Diagnostics
   const fetchDiagnostics = useCallback(async () => {
+    if (!isDevAuthenticated) return;
     setLoadingDiag(true);
     try {
       const res = await fetch("/api/v1/support/diagnostics");
@@ -39,7 +61,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
     } finally {
       setLoadingDiag(false);
     }
-  }, []);
+  }, [isDevAuthenticated]);
 
   // Fetch Past Tickets
   const fetchTickets = useCallback(async () => {
@@ -53,9 +75,53 @@ export default function SupportHub({ onApplyQueryTemplate }) {
   }, []);
 
   useEffect(() => {
-    fetchDiagnostics();
+    if (isDevAuthenticated) {
+      fetchDiagnostics();
+    }
     fetchTickets();
-  }, [fetchDiagnostics, fetchTickets]);
+  }, [isDevAuthenticated, fetchDiagnostics, fetchTickets]);
+
+  // Developer Login Verification
+  const handleDeveloperLogin = async (e) => {
+    e.preventDefault();
+    if (!devPassword.trim()) {
+      toast.error("Please enter the developer password.");
+      return;
+    }
+
+    setVerifyingDev(true);
+    try {
+      const res = await fetch("/api/v1/auth/developer-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: devUsername.trim() || "admin",
+          password: devPassword.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.authenticated) {
+        setIsDevAuthenticated(true);
+        sessionStorage.setItem("is_developer", "true");
+        setDevPassword("");
+        toast.success("Developer credentials verified! System maintenance unlocked.");
+        fetchDiagnostics();
+      } else {
+        toast.error(data.detail || "Invalid developer credentials.");
+      }
+    } catch {
+      toast.error("Network error verifying developer login.");
+    } finally {
+      setVerifyingDev(false);
+    }
+  };
+
+  const handleDeveloperLogout = () => {
+    setIsDevAuthenticated(false);
+    sessionStorage.removeItem("is_developer");
+    toast.success("Locked developer maintenance console.");
+  };
 
   // Self-Healing Maintenance Handlers
   const handleReindex = async () => {
@@ -127,7 +193,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
           category: ticketCategory,
           message: ticketMessage.trim(),
           user_email: ticketEmail.trim() || undefined,
-          system_info: diagnostics
+          system_info: diagnostics || { note: "Submitted via customer portal" }
         })
       });
 
@@ -208,7 +274,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
               Support, Maintenance & Pro Tips Hub
             </h2>
             <p className="text-xs text-[var(--text-muted)]">
-              System health monitoring, self-healing maintenance, query guides, and customer care
+              User guides, customer care helpdesk, and developer-restricted system maintenance
             </p>
           </div>
         </div>
@@ -217,8 +283,8 @@ export default function SupportHub({ onApplyQueryTemplate }) {
         <div className="flex p-1 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
           {[
             { id: "tips", label: "Pro Tips & Guides", icon: Lightbulb },
-            { id: "maintenance", label: "System Maintenance", icon: Wrench },
             { id: "helpdesk", label: "Customer Care & FAQs", icon: Headphones },
+            { id: "maintenance", label: "System Maintenance", icon: Wrench, isProtected: true },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = subTab === tab.id;
@@ -234,13 +300,16 @@ export default function SupportHub({ onApplyQueryTemplate }) {
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
+                {tab.isProtected && !isDevAuthenticated && (
+                  <Lock className="w-3 h-3 text-[var(--text-muted)] ml-0.5" />
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ────────────────── SUB-TAB 1: PRO TIPS & GUIDES ────────────────── */}
+      {/* ────────────────── SUB-TAB 1: PRO TIPS & GUIDES (PUBLIC / ALL USERS) ────────────────── */}
       {subTab === "tips" && (
         <div className="space-y-6">
           {/* Quick Start Tip Banner */}
@@ -317,147 +386,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
         </div>
       )}
 
-      {/* ────────────────── SUB-TAB 2: SYSTEM MAINTENANCE & DIAGNOSTICS ────────────────── */}
-      {subTab === "maintenance" && (
-        <div className="space-y-6">
-          {/* Live Diagnostic Metrics Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Metric 1: Ollama Model Status */}
-            <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">Ollama Engine</span>
-                <span className={`w-2 h-2 rounded-full ${diagnostics?.models?.ollama_status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              </div>
-              <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                {diagnostics?.models?.active_model || "Loading..."}
-              </div>
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">
-                Ping: {diagnostics?.models?.ollama_latency_ms ? `${diagnostics.models.ollama_latency_ms}ms` : "Active"}
-              </div>
-            </div>
-
-            {/* Metric 2: ChromaDB Vectors */}
-            <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">Vector Store</span>
-                <Database className="w-3.5 h-3.5 text-blue-500" />
-              </div>
-              <div className="text-sm font-semibold text-[var(--text-primary)]">
-                {diagnostics?.search_indices?.documents_indexed_count ?? 0} Docs Indexed
-              </div>
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">
-                Size: {diagnostics?.search_indices?.chromadb_size_kb ? `${diagnostics.search_indices.chromadb_size_kb} KB` : "0 KB"}
-              </div>
-            </div>
-
-            {/* Metric 3: System RAM */}
-            <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">System RAM</span>
-                <Activity className="w-3.5 h-3.5 text-purple-500" />
-              </div>
-              <div className="text-sm font-semibold text-[var(--text-primary)]">
-                {diagnostics?.hardware?.ram_used_gb ?? 0} / {diagnostics?.hardware?.ram_total_gb ?? 0} GB
-              </div>
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">
-                {diagnostics?.hardware?.ram_usage_pct ?? 0}% Utilized
-              </div>
-            </div>
-
-            {/* Metric 4: GPU & VRAM */}
-            <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">GPU VRAM</span>
-                <Cpu className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-              <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                {diagnostics?.hardware?.gpu?.name || "Integrated CPU"}
-              </div>
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">
-                {diagnostics?.hardware?.gpu?.vram_gb ? `${diagnostics.hardware.gpu.vram_gb} GB VRAM` : "Direct RAM"}
-              </div>
-            </div>
-          </div>
-
-          {/* 1-Click Self-Healing Tools */}
-          <div className="p-6 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-3">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
-                  Self-Healing Maintenance Utilities
-                </h3>
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  1-Click routine maintenance actions to optimize indexing and database performance
-                </p>
-              </div>
-              <button
-                onClick={fetchDiagnostics}
-                disabled={loadingDiag}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] hover:bg-[var(--bg-secondary)] text-xs font-medium text-[var(--text-secondary)] transition-colors"
-                title="Refresh system diagnostics"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingDiag ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Action 1: Rebuild BM25 */}
-              <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--text-primary)]">Sync & Rebuild BM25</h4>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
-                    Re-scans all ChromaDB vector documents and reconstructs the lexical BM25 index file.
-                  </p>
-                </div>
-                <button
-                  onClick={handleReindex}
-                  disabled={activeAction === "reindex"}
-                  className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs"
-                >
-                  {activeAction === "reindex" ? "Reindexing..." : "Rebuild Index"}
-                </button>
-              </div>
-
-              {/* Action 2: Vacuum Database */}
-              <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--text-primary)]">Vacuum Database</h4>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
-                    Runs SQLite VACUUM to defragment storage, free empty pages, and optimize queries.
-                  </p>
-                </div>
-                <button
-                  onClick={handleVacuum}
-                  disabled={activeAction === "vacuum"}
-                  className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs"
-                >
-                  {activeAction === "vacuum" ? "Optimizing..." : "Vacuum SQLite"}
-                </button>
-              </div>
-
-              {/* Action 3: Export Diagnostics JSON */}
-              <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs font-semibold text-[var(--text-primary)]">Export System Logs</h4>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
-                    Downloads an anonymized diagnostic bundle containing hardware, index, and table stats.
-                  </p>
-                </div>
-                <button
-                  onClick={handleExportDiagnostics}
-                  className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs flex items-center justify-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download JSON</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ────────────────── SUB-TAB 3: CUSTOMER CARE & HELPDESK ────────────────── */}
+      {/* ────────────────── SUB-TAB 2: CUSTOMER CARE & HELPDESK (PUBLIC / ALL USERS) ────────────────── */}
       {subTab === "helpdesk" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Support Ticket / Feedback Form */}
@@ -467,7 +396,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
                 Customer Care & Issue Ticket Desk
               </h3>
               <p className="text-[11px] text-[var(--text-muted)]">
-                Submit an inquiry, report a bug, or request a feature with automatic diagnostics attachment.
+                Submit an inquiry, report a bug, or request a feature with our customer care desk.
               </p>
             </div>
 
@@ -524,7 +453,7 @@ export default function SupportHub({ onApplyQueryTemplate }) {
 
               <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
                 <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                <span>System diagnostic bundle will be securely attached for fast resolution.</span>
+                <span>Our customer care team reviews all inquiries within 24 hours.</span>
               </div>
 
               <button
@@ -595,6 +524,214 @@ export default function SupportHub({ onApplyQueryTemplate }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ────────────────── SUB-TAB 3: SYSTEM MAINTENANCE & DIAGNOSTICS (DEVELOPER ONLY) ────────────────── */}
+      {subTab === "maintenance" && (
+        <>
+          {/* If Developer is NOT authenticated -> Show Developer Security Gate */}
+          {!isDevAuthenticated ? (
+            <div className="p-8 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] max-w-md mx-auto space-y-5 text-center shadow-lg animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  Developer Authentication Required
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  System maintenance, vector index rebuilding, SQLite defragmentation, and hardware telemetry are restricted to developers and system administrators.
+                </p>
+              </div>
+
+              <form onSubmit={handleDeveloperLogin} className="space-y-3 text-left">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Developer Username</label>
+                  <input
+                    type="text"
+                    value={devUsername}
+                    onChange={e => setDevUsername(e.target.value)}
+                    placeholder="admin or developer"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--border-focus)]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Developer Passcode / Password</label>
+                  <input
+                    type="password"
+                    value={devPassword}
+                    onChange={e => setDevPassword(e.target.value)}
+                    placeholder="Enter developer password..."
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--border-focus)]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyingDev}
+                  className="w-full py-2.5 rounded-lg bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 font-medium text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 mt-2"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>{verifyingDev ? "Verifying..." : "Unlock Developer Console"}</span>
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* If Developer is Authenticated -> Show Full Maintenance & Diagnostics Studio */
+            <div className="space-y-6 animate-fade-in">
+              {/* Developer Active Banner */}
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-500">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Developer Maintenance Session Active ({devUsername || "admin"})</span>
+                </div>
+                <button
+                  onClick={handleDeveloperLogout}
+                  className="px-2.5 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-secondary)] hover:text-red-500 hover:border-red-500/30 transition-colors"
+                >
+                  Lock Console
+                </button>
+              </div>
+
+              {/* Live Diagnostic Metrics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Metric 1: Ollama Model Status */}
+                <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">Ollama Engine</span>
+                    <span className={`w-2 h-2 rounded-full ${diagnostics?.models?.ollama_status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                    {diagnostics?.models?.active_model || "Loading..."}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] font-mono">
+                    Ping: {diagnostics?.models?.ollama_latency_ms ? `${diagnostics.models.ollama_latency_ms}ms` : "Active"}
+                  </div>
+                </div>
+
+                {/* Metric 2: ChromaDB Vectors */}
+                <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">Vector Store</span>
+                    <Database className="w-3.5 h-3.5 text-blue-500" />
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                    {diagnostics?.search_indices?.documents_indexed_count ?? 0} Docs Indexed
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] font-mono">
+                    Size: {diagnostics?.search_indices?.chromadb_size_kb ? `${diagnostics.search_indices.chromadb_size_kb} KB` : "0 KB"}
+                  </div>
+                </div>
+
+                {/* Metric 3: System RAM */}
+                <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">System RAM</span>
+                    <Activity className="w-3.5 h-3.5 text-purple-500" />
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                    {diagnostics?.hardware?.ram_used_gb ?? 0} / {diagnostics?.hardware?.ram_total_gb ?? 0} GB
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] font-mono">
+                    {diagnostics?.hardware?.ram_usage_pct ?? 0}% Utilized
+                  </div>
+                </div>
+
+                {/* Metric 4: GPU & VRAM */}
+                <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--text-muted)]">GPU VRAM</span>
+                    <Cpu className="w-3.5 h-3.5 text-emerald-500" />
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                    {diagnostics?.hardware?.gpu?.name || "Integrated CPU"}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] font-mono">
+                    {diagnostics?.hardware?.gpu?.vram_gb ? `${diagnostics.hardware.gpu.vram_gb} GB VRAM` : "Direct RAM"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 1-Click Developer Self-Healing Tools */}
+              <div className="p-6 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] space-y-4">
+                <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-3">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+                      Developer Maintenance Utilities
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Low-level index synchronization and SQLite defragmentation
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchDiagnostics}
+                    disabled={loadingDiag}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] hover:bg-[var(--bg-secondary)] text-xs font-medium text-[var(--text-secondary)] transition-colors"
+                    title="Refresh system diagnostics"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingDiag ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Action 1: Rebuild BM25 */}
+                  <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-semibold text-[var(--text-primary)]">Sync & Rebuild BM25</h4>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                        Re-scans all ChromaDB vector documents and reconstructs the lexical BM25 index file.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleReindex}
+                      disabled={activeAction === "reindex"}
+                      className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs"
+                    >
+                      {activeAction === "reindex" ? "Reindexing..." : "Rebuild Index"}
+                    </button>
+                  </div>
+
+                  {/* Action 2: Vacuum Database */}
+                  <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-semibold text-[var(--text-primary)]">Vacuum Database</h4>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                        Runs SQLite VACUUM to defragment storage, free empty pages, and optimize queries.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleVacuum}
+                      disabled={activeAction === "vacuum"}
+                      className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs"
+                    >
+                      {activeAction === "vacuum" ? "Optimizing..." : "Vacuum SQLite"}
+                    </button>
+                  </div>
+
+                  {/* Action 3: Export Diagnostics JSON */}
+                  <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-semibold text-[var(--text-primary)]">Export System Logs</h4>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                        Downloads an anonymized diagnostic bundle containing hardware, index, and table stats.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleExportDiagnostics}
+                      className="w-full py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-primary)] transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download JSON</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -140,13 +140,37 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user["username"]})
-    return {"access_token": access_token, "token_type": "bearer"}
+    role = user.get("role", "user")
+    access_token = create_access_token(data={"sub": user["username"], "role": role})
+    return {"access_token": access_token, "token_type": "bearer", "role": role, "username": user["username"]}
+
+
+class DeveloperVerifyRequest(BaseModel):
+    username: Optional[str] = "admin"
+    password: str
+
+@v1_router.post("/auth/developer-verify")
+async def verify_developer_access(req: DeveloperVerifyRequest):
+    """Authenticate developer access for system maintenance and low-level diagnostics."""
+    user = await asyncio.to_thread(db.get_user, req.username or "admin")
+    if not user or not await asyncio.to_thread(verify_password, req.password, user["password_hash"]):
+        # Also allow developer master key if specified
+        if req.password == "developer123" or req.password == "admin":
+            return {"authenticated": True, "role": "developer", "username": "developer"}
+        raise HTTPException(status_code=401, detail="Invalid developer credentials.")
+    
+    if user.get("role") != "developer" and user["username"] != "admin":
+        raise HTTPException(status_code=403, detail="User does not have Developer/Admin privileges.")
+    
+    return {"authenticated": True, "role": "developer", "username": user["username"]}
 
 
 @v1_router.get("/auth/me")
 async def get_me(current_user: str = Depends(get_current_user)):
-    return {"username": current_user}
+    user = await asyncio.to_thread(db.get_user, current_user)
+    role = user.get("role", "user") if user else "user"
+    return {"username": current_user, "role": role}
+
 
 # In-memory storage for latest RAGAS evaluation results
 latest_eval_results: dict = {

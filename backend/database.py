@@ -105,9 +105,16 @@ class Database:
                     CREATE TABLE IF NOT EXISTS users (
                         username TEXT PRIMARY KEY,
                         password_hash TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'user',
                         created_at TEXT NOT NULL
                     )
                 """)
+                # Migration check for role column if table already exists
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+                except Exception:
+                    pass
+
 
                 # 8. Embedding Cache Table
                 cursor.execute("""
@@ -313,12 +320,15 @@ class Database:
                     pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
                     default_hash = pwd_ctx.hash("password123")
                     cursor.execute(
-                        "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
+                        "INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, 'developer', ?)",
                         ("admin", default_hash, now)
                     )
-                    logger.info("Database seeded with default admin/password123 user.")
+                    logger.info("Database seeded with default admin/password123 user with role='developer'.")
+                else:
+                    cursor.execute("UPDATE users SET role = 'developer' WHERE username = 'admin'")
                 
                 conn.commit()
+
 
             # ── Idempotent Alter Migrations ──────────────────────────────
             self._run_alter_migrations()
@@ -578,10 +588,11 @@ class Database:
     def get_user(self, username: str):
         with self.get_connection() as conn:
             row = conn.execute(
-                "SELECT username, password_hash, created_at FROM users WHERE username = ?",
+                "SELECT username, password_hash, role, created_at FROM users WHERE username = ?",
                 (username,)
             ).fetchone()
             return dict(row) if row else None
+
 
     # ── Embeddings Cache API ──────────────────────────────────────────
     # ── Telemetry API ────────────────────────────────
