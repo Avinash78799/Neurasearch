@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Brain, Zap, Sparkles, MessageSquare, Info, BookOpen, Search, 
-  BarChart2, Cpu, Database, Laptop, ShieldCheck, LogOut, Moon, Sun, Plus
+  BarChart2, Cpu, Database, Laptop, ShieldCheck, LogOut, Plus
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -43,7 +43,7 @@ export default function App() {
   const [visualizeActive, setVisualizeActive] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [initialResearchQuery, setInitialResearchQuery] = useState("");
-  const [activeProfileInfo, setActiveProfileInfo] = useState("Eco (4GB VRAM)");
+  const [activeProfileInfo, setActiveProfileInfo] = useState("Eco (GTX 1650)");
 
   const handleToggleDoc = (docName) => {
     setSelectedDocs(prev => 
@@ -139,7 +139,7 @@ export default function App() {
         const hwData = await hwRes.json();
         if (hwData.specs) {
           const rec = hwData.specs.recommended_profile;
-          setActiveProfileInfo(rec === "turbo" ? "Cloud Turbo (Groq 70B)" : rec === "balanced" ? "Balanced (8GB VRAM)" : "Eco (4GB VRAM: GTX 1650)");
+          setActiveProfileInfo(rec === "turbo" ? "Turbo (Groq 70B)" : rec === "balanced" ? "Balanced (8GB VRAM)" : "Eco (GTX 1650)");
         }
       }
     } catch {}
@@ -378,49 +378,49 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden text-[var(--text-primary)] bg-[var(--bg-primary)] transition-colors duration-300">
+    <div className="flex h-screen overflow-hidden text-[var(--text-primary)] bg-[var(--bg-primary)] transition-colors duration-200">
       <CursorMotion />
       <Toaster position="top-right" />
 
-      {/* ─── Modern Perplexity / ChatGPT Sidebar ─── */}
-      <aside className="w-[280px] flex-shrink-0 glass border-r border-[var(--border-primary)] flex flex-col justify-between z-20">
+      {/* ─── Clean Minimalist Sidebar ─── */}
+      <aside className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] flex flex-col justify-between z-20">
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Logo & Brand Header */}
-          <div className="px-5 py-4.5 border-b border-[var(--border-primary)] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md shadow-purple-500/20 text-white font-black">
-                <Brain className="w-5 h-5" />
+          <div className="px-4 py-3.5 border-b border-[var(--border-primary)] flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center text-white font-semibold shadow-sm">
+                <Brain className="w-4 h-4" />
               </div>
               <div>
-                <h1 className="text-sm font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+                <h1 className="text-sm font-semibold tracking-tight text-[var(--text-primary)] leading-tight">
                   NeuraSearch
                 </h1>
-                <p className="text-[10px] text-[var(--text-muted)] font-medium leading-none mt-0.5">
-                  AI Research Assistant
+                <p className="text-[10px] text-[var(--text-muted)] font-normal leading-none mt-0.5">
+                  Research Studio
                 </p>
               </div>
             </div>
           </div>
 
           {/* New Chat Button */}
-          <div className="px-4 pt-3.5 pb-2">
+          <div className="px-3 pt-3 pb-2">
             <button
               onClick={handleCreateNewChat}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-semibold text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/25 active:scale-[0.98]"
+              className="w-full py-2 px-3 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.99]"
             >
-              <Plus className="w-4 h-4" />
-              <span>New Research Thread</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Thread</span>
             </button>
           </div>
 
-          {/* Sidebar Navigation Items */}
-          <div className="px-3 py-2 space-y-1 border-b border-[var(--border-primary)]">
+          {/* Navigation Items */}
+          <div className="px-2 py-1.5 space-y-0.5 border-b border-[var(--border-primary)]">
             {[
-              { id: "qa", label: "Smart Research Q&A", icon: MessageSquare },
-              { id: "research", label: "Deep Research Studio", icon: Sparkles },
+              { id: "qa", label: "Research Q&A", icon: MessageSquare },
+              { id: "research", label: "Deep Research", icon: Sparkles },
               { id: "reader", label: "Reading Studio", icon: BookOpen },
               { id: "analytics", label: "Analytics & Graph", icon: BarChart2 },
-              { id: "knowledge", label: "Knowledge Hub", icon: Database },
+              { id: "knowledge", label: "Knowledge Notes", icon: Database },
               { id: "search", label: "Universal Search", icon: Search },
             ].map(tab => {
               const Icon = tab.icon;
@@ -429,10 +429,10 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
                     isActive 
-                      ? "bg-purple-600/15 text-[var(--accent-primary)] font-bold border border-purple-500/30" 
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-purple-500/10"
+                      ? "bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold" 
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}`} />
@@ -442,8 +442,8 @@ export default function App() {
             })}
           </div>
 
-          {/* Scrollable Document Library & History */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+          {/* Document Library & History */}
+          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
             <DocumentList
               documents={documents}
               selectedSource={selectedDoc?.source}
@@ -461,8 +461,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Upload & Bottom User Status Bar */}
-        <div className="p-3 border-t border-[var(--border-primary)] space-y-2">
+        {/* Upload Zone in sidebar bottom */}
+        <div className="p-3 border-t border-[var(--border-primary)]">
           <DocumentUpload 
             onUploadComplete={fetchDocuments} 
             proMode={proMode}
@@ -475,39 +475,38 @@ export default function App() {
       <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
         
         {/* Top Header Bar */}
-        <header className="h-[60px] glass border-b border-[var(--border-primary)] flex items-center justify-between px-6 z-10">
-          {/* Active View Title */}
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)]">
-              {activeTab === "qa" && "Smart Research Q&A"}
-              {activeTab === "insights" && "Document Insights Dossier"}
+        <header className="h-[52px] bg-[var(--bg-surface)] border-b border-[var(--border-primary)] flex items-center justify-between px-6 z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+              {activeTab === "qa" && "Research Assistant"}
+              {activeTab === "insights" && "Document Insights"}
               {activeTab === "reader" && "Reading & Analysis Studio"}
               {activeTab === "research" && "Deep Research Monograph"}
-              {activeTab === "analytics" && "Knowledge Graph & System Metrics"}
-              {activeTab === "knowledge" && "Knowledge Notes Hub"}
-              {activeTab === "search" && "Universal Knowledge Search"}
+              {activeTab === "analytics" && "Knowledge Graph & Metrics"}
+              {activeTab === "knowledge" && "Knowledge Notes"}
+              {activeTab === "search" && "Universal Search"}
             </span>
           </div>
 
-          {/* Header Controls & Profile Badges */}
-          <div className="flex items-center gap-3">
+          {/* Header Controls */}
+          <div className="flex items-center gap-2.5">
             {/* Hardware Profile Button */}
             <button
               onClick={() => setIsModelModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-purple-400 text-xs font-semibold text-[var(--text-primary)] transition-all shadow-sm"
-              title="Click to view hardware detection and switch profiles"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all shadow-sm"
+              title="Hardware Detection & Model Settings"
             >
-              <Cpu className="w-3.5 h-3.5 text-purple-400" />
+              <Cpu className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
               <span>{activeProfileInfo}</span>
             </button>
 
             {/* GitHub Import Button */}
             <button
               onClick={() => setIsGithubModalOpen(true)}
-              className="p-2 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-purple-400 transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
               title="Import GitHub Repository"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
 
             {/* Theme Toggle */}
@@ -516,10 +515,10 @@ export default function App() {
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-rose-500 transition-all"
               title="Logout"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
@@ -547,22 +546,22 @@ export default function App() {
 
               {/* Scoped Document Context Pills */}
               {selectedDocs.length > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-500/10 border border-purple-400/30 text-xs text-[var(--text-primary)] animate-fade-in">
-                  <span className="font-bold text-[10px] uppercase tracking-wider text-[var(--accent-primary)]">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] animate-fade-in">
+                  <span className="font-semibold text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
                     Scoped Files ({selectedDocs.length}):
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {selectedDocs.map((d, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] font-mono">
+                      <span key={i} className="px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] font-mono">
                         {d}
                       </span>
                     ))}
                   </div>
                   <button 
                     onClick={() => setSelectedDocs([])}
-                    className="text-[11px] text-rose-400 hover:underline ml-auto font-medium"
+                    className="text-[11px] text-rose-500 hover:underline ml-auto font-medium"
                   >
-                    Clear Scope
+                    Clear
                   </button>
                 </div>
               )}
@@ -580,15 +579,15 @@ export default function App() {
                     return (
                       <div 
                         key={idx}
-                        className={`flex gap-4 p-5 rounded-2xl border transition-all animate-fade-in ${
+                        className={`flex gap-4 p-4.5 rounded-xl border transition-all animate-fade-in ${
                           isUser
-                            ? "bg-purple-600/10 border-purple-500/20 justify-end"
-                            : "glass-card border-[var(--border-primary)] shadow-sm"
+                            ? "bg-[var(--bg-secondary)] border-[var(--border-primary)] justify-end"
+                            : "glass-card border-[var(--border-primary)]"
                         }`}
                       >
                         <div className="max-w-3xl space-y-2">
-                          <span className={`text-[10px] font-bold uppercase tracking-widest block ${isUser ? "text-purple-400 text-right" : "text-indigo-400"}`}>
-                            {isUser ? "You" : "NeuraSearch Research Assistant"}
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isUser ? "text-[var(--accent-primary)] text-right" : "text-[var(--text-muted)]"}`}>
+                            {isUser ? "You" : "NeuraSearch"}
                           </span>
                           <div className="prose-neura text-sm leading-relaxed">
                             {msg.content}
@@ -634,11 +633,11 @@ export default function App() {
               {/* Ready State Screen */}
               {messages.length === 0 && !isLoading && !result && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-purple-400/25 mb-4 shadow-xl">
-                    <Zap className="w-8 h-8 text-purple-400" />
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center border border-[var(--border-primary)] mb-3 text-[var(--accent-primary)] shadow-sm">
+                    <Zap className="w-6 h-6" />
                   </div>
-                  <h2 className="text-base font-bold text-[var(--text-primary)] mb-1">
-                    NeuraSearch Workspace Ready
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                    Workspace Ready
                   </h2>
                   <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
                     Upload research PDFs, import a GitHub repo, or ask questions directly with multi-pass reasoning.

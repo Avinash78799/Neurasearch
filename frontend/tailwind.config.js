@@ -4,42 +4,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        lavender: {
-          50: "#faf8ff",
-          100: "#f3eefd",
-          200: "#e4d7fe",
-          300: "#cbb2fe",
-          400: "#b18bfd",
-          500: "#9860f7",
-          600: "#813eed",
-          700: "#6c29d6",
-          800: "#221838",
-          900: "#120c24",
-          950: "#0b0717",
+        obsidian: {
+          950: "#080a0f",
+          900: "#0d1117",
+          850: "#131822",
+          800: "#1a202c",
+          700: "#242d3e",
+          600: "#364156",
         },
-        dark: {
-          900: "#0e091d",
-          800: "#16102a",
-          700: "#221838",
-          600: "#362759",
-        },
-        neon: {
-          cyan: "#7dd3fc",
-          emerald: "#6ee7b7",
-          violet: "#b8a5fe",
-          amber: "#fde047",
-          rose: "#f472b6",
-          lavender: "#d8b4fe",
+        brand: {
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
+          700: "#1d4ed8",
+          800: "#1e40af",
+          900: "#1e3a8a",
         },
       },
       fontFamily: {
-        inter: ["Inter", "system-ui", "sans-serif"],
+        inter: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       animation: {
-        "fade-in": "fadeIn 0.5s ease-out forwards",
-        "slide-up": "slideUp 0.4s ease-out forwards",
-        "pulse-glow": "pulseGlow 2s ease-in-out infinite",
-        shimmer: "shimmer 2s linear infinite",
+        "fade-in": "fadeIn 0.25s ease-out forwards",
+        "slide-up": "slideUp 0.3s ease-out forwards",
       },
       keyframes: {
         fadeIn: {
@@ -47,16 +38,8 @@ export default {
           "100%": { opacity: "1" },
         },
         slideUp: {
-          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        pulseGlow: {
-          "0%, 100%": { boxShadow: "0 0 8px rgba(6,182,212,0.3)" },
-          "50%": { boxShadow: "0 0 20px rgba(6,182,212,0.6)" },
-        },
-        shimmer: {
-          "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
         },
       },
     },
