@@ -209,6 +209,45 @@ export default function EvalDashboard({ scores, onRunEval, isLoading }) {
                 </div>
               </div>
 
+              {/* 10-Criterion 1-to-5 Research Quality Rubric Matrix */}
+              {benchmarkData.rubric && (
+                <div className="glass-light rounded-xl p-4 border border-lavender-300/15 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-lavender-200 uppercase tracking-wider">
+                        10-Criterion Research Quality Evaluation Rubric (1–5 Scale)
+                      </h4>
+                      <p className="text-[10px] text-[var(--text-muted)]">Perplexity & Standardized Academic Evaluation Framework</p>
+                    </div>
+                    <div className="px-3 py-1 rounded-lg bg-lavender-500/20 border border-lavender-300/30 text-lavender-200 font-bold text-sm tabular-nums">
+                      Mean: {benchmarkData.rubric.overall_mean} / 5.0
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2">
+                    {[
+                      { label: "Accuracy", score: benchmarkData.rubric.accuracy },
+                      { label: "Source Quality", score: benchmarkData.rubric.source_quality },
+                      { label: "Citation Comp.", score: benchmarkData.rubric.citation_completeness },
+                      { label: "Citation Entailment", score: benchmarkData.rubric.citation_entailment },
+                      { label: "Coverage", score: benchmarkData.rubric.coverage },
+                      { label: "Reasoning", score: benchmarkData.rubric.reasoning_quality },
+                      { label: "Uncertainty", score: benchmarkData.rubric.uncertainty_handling },
+                      { label: "Clarity/Structure", score: benchmarkData.rubric.clarity_structure },
+                      { label: "Reproducibility", score: benchmarkData.rubric.reproducibility_log },
+                      { label: "Time Saved", score: benchmarkData.rubric.efficiency_time_saved },
+                    ].map((item, idx) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-dark-900/60 border border-white/[0.04] text-center">
+                        <span className="text-[10px] text-[var(--text-muted)] block truncate">{item.label}</span>
+                        <span className="text-xs font-bold text-lavender-300 tabular-nums mt-0.5 block">
+                          {item.score} / 5.0
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 10 Tests Breakdown List */}
               <div className="space-y-2.5">
                 <h4 className="text-xs font-bold text-lavender-300 uppercase tracking-wider">

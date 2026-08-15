@@ -211,17 +211,23 @@ async def run_deep_research(
         citation_counter = 1
         findings = []
         
+        from graph.nodes.generator import _classify_source_tier
+
         # Merge results and assign citation numbers sequentially in the main thread
         for res in raw_results:
             sub_packages = []
             for doc in res["raw_docs"]:
+                source_name = doc["source"]
+                tier = _classify_source_tier(source_name)
                 pkg = EvidencePackage(
                     content=doc["content"],
-                    source=doc["source"],
+                    source=source_name,
                     page_number=doc["page_number"],
                     score=doc["score"],
                     workspace_id=workspace_id,
-                    citation_index=citation_counter
+                    citation_index=citation_counter,
+                    source_tier=tier,
+                    confidence_level="Strongly Supported" if tier.startswith("Tier 1") else "Likely"
                 )
                 sub_packages.append(pkg)
                 evidence_packages.append(pkg)
@@ -230,7 +236,7 @@ async def run_deep_research(
             findings.append({
                 "query": res["query"],
                 "answer": res["answer"],
-                "packages": [p.dict() for p in sub_packages]
+                "packages": [p.model_dump() if hasattr(p, "model_dump") else p.dict() for p in sub_packages]
             })
 
         # Step 4: Synthesize final report
