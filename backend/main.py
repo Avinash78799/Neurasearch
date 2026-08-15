@@ -1157,6 +1157,36 @@ async def get_github_issues_endpoint(repo: str, token: Optional[str] = None, sta
         raise HTTPException(status_code=500, detail=f"Failed to fetch GitHub issues: {str(e)}")
 
 
+# ── Hardware Auto-Detection & Adaptive Profiles ─────────────────────
+class ApplyHardwareProfileRequest(BaseModel):
+    profile_id: str
+
+
+@v1_router.get("/hardware/specs")
+async def get_hardware_specs_endpoint():
+    """Detect local laptop hardware specs and return recommended AI profile."""
+    from core.hardware_profiler import HardwareProfiler, PROFILES
+    specs = HardwareProfiler.detect_hardware()
+    return {
+        "specs": specs.model_dump(),
+        "available_profiles": [p.model_dump() for p in PROFILES.values()]
+    }
+
+
+@v1_router.post("/hardware/apply-profile")
+async def apply_hardware_profile_endpoint(req: ApplyHardwareProfileRequest):
+    """Apply an adaptive hardware performance profile (eco, balanced, or turbo)."""
+    from core.hardware_profiler import HardwareProfiler
+    try:
+        res = HardwareProfiler.apply_profile(req.profile_id)
+        return res
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error("Failed to apply hardware profile: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to apply profile: {str(e)}")
+
+
 # ── Settings & Usage Endpoints ───────────────────────────────────────
 @v1_router.get("/settings")
 async def get_settings_endpoint():
