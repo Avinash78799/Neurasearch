@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, AlertTriangle, FileText, Clipboard, Check, BookOpen, Download, ArrowRight, Share2 } from "lucide-react";
+import { Sparkles, AlertTriangle, FileText, Clipboard, Check, BookOpen, Download, ArrowRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -72,10 +72,10 @@ export default function AnswerCard({
             language={match[1]}
             PreTag="div"
             customStyle={{
-              background: "#27303E",
-              border: "1px solid rgba(220, 226, 240, 0.15)",
-              borderRadius: "12px",
-              padding: "16px",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-primary)",
+              borderRadius: "8px",
+              padding: "14px",
               fontSize: "12px",
             }}
             {...props}
@@ -84,7 +84,7 @@ export default function AnswerCard({
           </SyntaxHighlighter>
         </div>
       ) : (
-        <code className="bg-[#303B4B] border border-[rgba(220,226,240,0.15)] px-1.5 py-0.5 rounded text-[#DCE2F0] font-mono text-xs" {...props}>
+        <code className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] px-1.5 py-0.5 rounded text-[var(--text-primary)] font-mono text-xs" {...props}>
           {children}
         </code>
       );
@@ -92,125 +92,120 @@ export default function AnswerCard({
   };
 
   return (
-    <div className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-2xl bg-[#3D4A5E] ${isHallucination ? "border-rose-400" : "border-[rgba(220,226,240,0.2)]"}`}>
+    <div className={`rounded-xl border transition-all duration-200 overflow-hidden glass-card ${isHallucination ? "border-red-500/30" : "border-[var(--border-primary)]"}`}>
       {/* Hallucination Warning Banner */}
       {isHallucination && (
-        <div className="flex items-center gap-3 px-6 py-3.5 bg-rose-500/20 border-b border-rose-500/30 animate-fade-in text-white">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-rose-500 flex items-center justify-center text-white">
+        <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10 border-b border-red-500/20 animate-fade-in">
+          <div className="flex-shrink-0 w-7 h-7 rounded-md bg-red-500/20 flex items-center justify-center text-red-500">
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider">Hallucination Warning</p>
-            <p className="text-[11px] text-[#C5D0E0] mt-0.5">
+            <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">Hallucination Warning</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
               The answer contains claims that may not be grounded in the retrieved documents. Verify critical facts.
             </p>
           </div>
         </div>
       )}
 
-      {/* Main Composition Top Section */}
-      <div className="p-6 space-y-4">
-        {/* Header with Title and Actions */}
-        <div className="flex items-center justify-between pb-3 border-b border-[rgba(220,226,240,0.12)]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#DCE2F0] flex items-center justify-center text-[#1C2430] shadow-md">
-              <Sparkles className="w-4.5 h-4.5 text-[#1C2430]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
-                {question || "Research Synthesis"}
-              </h2>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#BAC7DB]">
-                GROUNDED AI REPORT
-              </span>
-            </div>
+      {/* Main Card Header */}
+      <div className="px-5 py-4 border-b border-[var(--border-primary)] flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-primary)]">
+            <Sparkles className="w-3.5 h-3.5" />
           </div>
-
-          {/* Action Pills (#DCE2F0 Button from image) */}
-          {answer && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#DCE2F0] hover:bg-[#C7D1E8] text-[#1C2430] font-semibold text-xs transition-all shadow-sm active:scale-95"
-                title="Copy answer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Clipboard className="w-3.5 h-3.5 text-[#1C2430]" />}
-                <span>{copied ? "Copied" : "Copy"}</span>
-              </button>
-
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#343F50] hover:bg-[#2B3442] text-[#DCE2F0] border border-[rgba(220,226,240,0.2)] font-semibold text-xs transition-all shadow-sm active:scale-95"
-                title="Export report"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export</span>
-              </button>
-
-              {onSaveToKnowledge && (
-                <button
-                  onClick={() => onSaveToKnowledge(question || "Smart Q&A Query", answer)}
-                  className="p-1.5 rounded-full bg-[#343F50] hover:bg-[#DCE2F0] text-[#DCE2F0] hover:text-[#1C2430] border border-[rgba(220,226,240,0.2)] transition-all"
-                  title="Save to Knowledge Hub"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          )}
+          <div>
+            <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+              {question ? "Research Synthesis" : "Answer"}
+            </h3>
+            <p className="text-[10px] text-[var(--text-muted)]">Grounded Multi-Pass Synthesis</p>
+          </div>
         </div>
 
-        {/* Markdown Body Text */}
-        <div className="prose-neura text-sm leading-relaxed text-[#FFFFFF]">
-          <ReactMarkdown components={markdownComponents}>
-            {cleanAnswer || ""}
-          </ReactMarkdown>
-        </div>
+        {/* Actions */}
+        {answer && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+              title="Copy answer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Clipboard className="w-3.5 h-3.5" />}
+              <span>{copied ? "Copied" : "Copy"}</span>
+            </button>
 
-        {/* Suggested Follow-ups */}
-        {followUps && followUps.length > 0 && (
-          <div className="pt-3 border-t border-[rgba(220,226,240,0.12)] space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#BAC7DB] block">
-              Suggested Inquiries
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {followUps.map((fu, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => onAskFollowUp && onAskFollowUp(fu)}
-                  className="group flex items-center justify-between text-left px-3 py-2 rounded-xl bg-[#343F50] hover:bg-[#2B3442] border border-[rgba(220,226,240,0.15)] text-xs text-[#C5D0E0] hover:text-white transition-all shadow-sm"
-                >
-                  <span className="truncate">{fu}</span>
-                  <ArrowRight className="w-3 h-3 text-[#BAC7DB] group-hover:text-white group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+              title="Export report (.md)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
+
+            {onSaveToKnowledge && (
+              <button
+                onClick={() => onSaveToKnowledge(question || "Smart Q&A Query", answer)}
+                className="p-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                title="Save as AI Note"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Secondary Panel using #DCE2F0 from Image for Source Citations */}
+      {/* Markdown Body */}
+      <div className="p-5 prose-neura text-sm leading-relaxed">
+        <ReactMarkdown components={markdownComponents}>
+          {cleanAnswer || ""}
+        </ReactMarkdown>
+      </div>
+
+      {/* Suggested Follow-ups */}
+      {followUps && followUps.length > 0 && (
+        <div className="px-5 py-3.5 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] space-y-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
+            Suggested Inquiries
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {followUps.map((fu, idx) => (
+              <button
+                key={idx}
+                onClick={() => onAskFollowUp && onAskFollowUp(fu)}
+                className="group flex items-center justify-between text-left px-3 py-2 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] hover:border-[var(--border-hover)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all shadow-xs"
+              >
+                <span className="truncate">{fu}</span>
+                <ArrowRight className="w-3 h-3 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-1.5" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Grounded Source Citations */}
       {sources && sources.length > 0 && (
-        <div className="px-6 py-3.5 bg-[#DCE2F0] text-[#1C2430] border-t border-[rgba(0,0,0,0.06)] flex flex-wrap items-center justify-between gap-2">
+        <div className="px-5 py-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#1C2430]">
-              Sources Cited ({sources.length}):
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              Sources ({sources.length}):
             </span>
             <div className="flex flex-wrap gap-1.5">
               {sources.map((src, idx) => (
                 <span
                   key={idx}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-[#1C2430] text-[11px] font-medium shadow-xs border border-black/5"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] text-[var(--text-secondary)] font-mono"
                 >
-                  <FileText className="w-3 h-3 text-[#1C2430]" />
+                  <FileText className="w-3 h-3 text-[var(--text-muted)]" />
                   {src}
                 </span>
               ))}
             </div>
           </div>
 
-          <span className="text-[10px] font-mono text-[#364559]">
-            #DCE2F0 Grounded Panel
+          <span className="text-[10px] font-mono text-[var(--text-muted)]">
+            Verified Retrieval
           </span>
         </div>
       )}

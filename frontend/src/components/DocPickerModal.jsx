@@ -13,38 +13,38 @@ export default function DocPickerModal({ isOpen, onClose, documents = [], select
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md rounded-2xl border border-[rgba(220,226,240,0.2)] shadow-2xl p-5 space-y-3.5 bg-[#3D4A5E] text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+      <div className="relative w-full max-w-md rounded-xl border border-[var(--border-primary)] shadow-2xl p-5 space-y-3.5 bg-[var(--bg-card)] text-[var(--text-primary)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[rgba(220,226,240,0.15)] pb-2.5">
+        <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#DCE2F0] flex items-center justify-center text-[#1C2430]">
+            <div className="w-7 h-7 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--text-primary)]">
               <BookOpen className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Add from Library</h3>
-              <p className="text-[10px] text-[#C5D0E0]">Scope queries to specific workspace documents</p>
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Add from Library</h3>
+              <p className="text-[10px] text-[var(--text-muted)]">Scope queries to specific workspace documents</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full text-[#C5D0E0] hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Filter input */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-[#BAC7DB] absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-3 top-2.5" />
           <input
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter document names..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#323E50] border border-[rgba(220,226,240,0.2)] text-xs text-white placeholder-[#BAC7DB] focus:outline-none focus:border-[#DCE2F0] font-normal"
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--border-focus)] font-normal"
           />
         </div>
 
         {/* Document list */}
-        <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+        <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
           {filtered.length > 0 ? (
             filtered.map((doc, idx) => {
               const srcName = typeof doc === "string" ? doc : doc.source;
@@ -53,22 +53,22 @@ export default function DocPickerModal({ isOpen, onClose, documents = [], select
                 <button
                   key={idx}
                   onClick={() => onToggleDoc && onToggleDoc(srcName)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left text-xs transition-all ${
+                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-left text-xs transition-all ${
                     isSelected
-                      ? "bg-[#DCE2F0] border-transparent text-[#1C2430] font-bold shadow-sm"
-                      : "bg-[#343F50] border-[rgba(220,226,240,0.15)] text-[#C5D0E0] hover:text-white hover:border-[#DCE2F0]"
+                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] text-[var(--text-primary)] font-medium"
+                      : "bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)]"
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? "text-[#1C2430]" : "text-[#BAC7DB]"}`} />
+                    <FileText className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
                     <span className="truncate">{srcName}</span>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-[#1C2430] stroke-[2.5] flex-shrink-0" />}
+                  {isSelected && <Check className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
                 </button>
               );
             })
           ) : (
-            <div className="py-6 text-center text-xs text-[#C5D0E0]">
+            <div className="py-6 text-center text-xs text-[var(--text-muted)]">
               No matching documents in workspace.
             </div>
           )}
@@ -76,7 +76,7 @@ export default function DocPickerModal({ isOpen, onClose, documents = [], select
 
         <button
           onClick={onClose}
-          className="w-full py-2.5 rounded-full bg-[#DCE2F0] hover:bg-[#C7D1E8] text-[#1C2430] font-bold text-xs transition-colors shadow-md"
+          className="w-full py-2 rounded-lg bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium text-xs transition-colors hover:opacity-90 shadow-xs"
         >
           Done
         </button>

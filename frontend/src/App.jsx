@@ -378,43 +378,43 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden text-[var(--text-primary)] bg-[var(--bg-primary)] transition-colors duration-200">
+    <div className="flex h-screen overflow-hidden text-[var(--text-primary)] bg-[var(--bg-primary)] transition-colors duration-150">
       <CursorMotion />
       <Toaster position="top-right" />
 
-      {/* ─── Slate Navy Sidebar (#343F50) ─── */}
-      <aside className="w-[260px] flex-shrink-0 bg-[#343F50] border-r border-[rgba(220,226,240,0.15)] flex flex-col justify-between z-20 shadow-2xl">
+      {/* ─── Flagship Matte Carbon Sidebar ─── */}
+      <aside className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] flex flex-col justify-between z-20 shadow-sm">
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Logo & Brand Header */}
-          <div className="px-4 py-3.5 border-b border-[rgba(220,226,240,0.1)] flex items-center justify-between">
+          <div className="px-4 py-3.5 border-b border-[var(--border-primary)] flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#DCE2F0] flex items-center justify-center text-[#1C2430] font-black shadow-md">
-                <Brain className="w-4 h-4 text-[#1C2430] stroke-[2.5]" />
+              <div className="w-7 h-7 rounded-lg bg-[var(--text-primary)] flex items-center justify-center text-[var(--bg-primary)] shadow-sm">
+                <Brain className="w-4 h-4 stroke-[2.5]" />
               </div>
               <div>
-                <h1 className="text-sm font-bold tracking-tight text-white leading-tight">
+                <h1 className="text-sm font-semibold tracking-tight text-[var(--text-primary)] leading-tight">
                   NeuraSearch
                 </h1>
-                <p className="text-[10px] text-[#C5D0E0] font-medium leading-none mt-0.5">
-                  Research Studio
+                <p className="text-[10px] text-[var(--text-muted)] font-normal leading-none mt-0.5">
+                  AI Research Studio
                 </p>
               </div>
             </div>
           </div>
 
-          {/* New Chat Button (#DCE2F0 Pill from image) */}
+          {/* New Chat Button */}
           <div className="px-3 pt-3 pb-2">
             <button
               onClick={handleCreateNewChat}
-              className="w-full py-2.5 px-3.5 rounded-full bg-[#DCE2F0] hover:bg-[#C7D1E8] text-xs font-bold text-[#1C2430] flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-[0.99]"
+              className="w-full py-2 px-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] hover:border-[var(--border-hover)] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.99]"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>New Research Thread</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Thread</span>
             </button>
           </div>
 
           {/* Navigation Items */}
-          <div className="px-2 py-1.5 space-y-0.5 border-b border-[rgba(220,226,240,0.1)]">
+          <div className="px-2 py-1.5 space-y-0.5 border-b border-[var(--border-primary)]">
             {[
               { id: "qa", label: "Research Q&A", icon: MessageSquare },
               { id: "research", label: "Deep Research", icon: Sparkles },
@@ -429,13 +429,13 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
                     isActive 
-                      ? "bg-[#DCE2F0] text-[#1C2430] font-bold shadow-sm" 
-                      : "text-[#C5D0E0] hover:text-white hover:bg-[#3D4A5E]"
+                      ? "bg-[var(--bg-surface-hover)] text-[var(--text-primary)] font-semibold border border-[var(--border-primary)]" 
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#1C2430]" : "text-[#95A5BC]"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -462,7 +462,7 @@ export default function App() {
         </div>
 
         {/* Upload Zone in sidebar bottom */}
-        <div className="p-3 border-t border-[rgba(220,226,240,0.1)] bg-[#2B3442]">
+        <div className="p-3 border-t border-[var(--border-primary)]">
           <DocumentUpload 
             onUploadComplete={fetchDocuments} 
             proMode={proMode}
@@ -471,13 +471,13 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ─── Main Content Area (Sage Canvas #EBF0E6) ─── */}
+      {/* ─── Main Content Area ─── */}
       <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
         
         {/* Top Header Bar */}
-        <header className="h-[52px] bg-[#343F50] border-b border-[rgba(220,226,240,0.15)] flex items-center justify-between px-6 z-10">
+        <header className="h-[52px] bg-[var(--bg-surface)] border-b border-[var(--border-primary)] flex items-center justify-between px-6 z-10">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#DCE2F0]">
+            <span className="text-xs font-medium tracking-wide text-[var(--text-primary)]">
               {activeTab === "qa" && "Research Assistant"}
               {activeTab === "insights" && "Document Insights"}
               {activeTab === "reader" && "Reading & Analysis Studio"}
@@ -489,21 +489,21 @@ export default function App() {
           </div>
 
           {/* Header Controls */}
-          <div className="flex items-center gap-2.5">
-            {/* Hardware Profile Button (#DCE2F0 Pill from image) */}
+          <div className="flex items-center gap-2">
+            {/* Hardware Profile Button */}
             <button
               onClick={() => setIsModelModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCE2F0] hover:bg-[#C7D1E8] text-xs font-bold text-[#1C2430] transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)] text-xs font-medium text-[var(--text-primary)] transition-all shadow-xs"
               title="Hardware Detection & Model Settings"
             >
-              <Cpu className="w-3.5 h-3.5 text-[#1C2430]" />
+              <Cpu className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>{activeProfileInfo}</span>
             </button>
 
             {/* GitHub Import Button */}
             <button
               onClick={() => setIsGithubModalOpen(true)}
-              className="p-1.5 rounded-full bg-[#3D4A5E] hover:bg-[#DCE2F0] text-[#DCE2F0] hover:text-[#1C2430] border border-[rgba(220,226,240,0.2)] transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
               title="Import GitHub Repository"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -515,7 +515,7 @@ export default function App() {
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-full bg-[#3D4A5E] hover:bg-rose-500 text-[#C5D0E0] hover:text-white border border-[rgba(220,226,240,0.2)] transition-all"
+              className="p-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/30 transition-all"
               title="Logout"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -523,7 +523,7 @@ export default function App() {
           </div>
         </header>
 
-        {/* Workspace Body (Sage Page Background #EBF0E6) */}
+        {/* Workspace Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
           
           {/* TAB 1: Smart Q&A */}
@@ -546,20 +546,20 @@ export default function App() {
 
               {/* Scoped Document Context Pills */}
               {selectedDocs.length > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-[#3D4A5E] border border-[rgba(220,226,240,0.2)] text-xs text-white animate-fade-in shadow-md">
-                  <span className="font-bold text-[10px] uppercase tracking-wider text-[#DCE2F0]">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] animate-fade-in">
+                  <span className="font-semibold text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
                     Scoped Files ({selectedDocs.length}):
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {selectedDocs.map((d, i) => (
-                      <span key={i} className="px-2.5 py-0.5 rounded-full bg-[#DCE2F0] text-[#1C2430] text-[11px] font-mono font-medium">
+                      <span key={i} className="px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] font-mono">
                         {d}
                       </span>
                     ))}
                   </div>
                   <button 
                     onClick={() => setSelectedDocs([])}
-                    className="text-[11px] text-rose-300 hover:underline ml-auto font-medium"
+                    className="text-[11px] text-red-500 hover:underline ml-auto font-medium"
                   >
                     Clear
                   </button>
@@ -579,17 +579,17 @@ export default function App() {
                     return (
                       <div 
                         key={idx}
-                        className={`flex gap-4 p-5 rounded-2xl border transition-all animate-fade-in shadow-md ${
+                        className={`flex gap-4 p-4.5 rounded-xl border transition-all animate-fade-in ${
                           isUser
-                            ? "bg-[#DCE2F0] text-[#1C2430] border-transparent justify-end"
-                            : "bg-[#3D4A5E] text-white border-[rgba(220,226,240,0.15)]"
+                            ? "bg-[var(--bg-secondary)] border-[var(--border-primary)] justify-end"
+                            : "glass-card border-[var(--border-primary)]"
                         }`}
                       >
-                        <div className="max-w-3xl space-y-2">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isUser ? "text-[#3D4A5E] text-right" : "text-[#DCE2F0]"}`}>
+                        <div className="max-w-3xl space-y-1.5">
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isUser ? "text-[var(--text-muted)] text-right" : "text-[var(--text-muted)]"}`}>
                             {isUser ? "You" : "NeuraSearch"}
                           </span>
-                          <div className={`text-sm leading-relaxed ${isUser ? "text-[#1C2430] font-medium" : "text-white"}`}>
+                          <div className="prose-neura text-sm leading-relaxed">
                             {msg.content}
                           </div>
                         </div>
@@ -604,7 +604,7 @@ export default function App() {
                 <AgentSteps steps={steps} />
               )}
 
-              {/* Final Synthesis Card matching Left Composition */}
+              {/* Final Synthesis Card */}
               {result && !isLoading && (
                 <div className="space-y-6">
                   {result.retrieval_quality && (
@@ -633,13 +633,13 @@ export default function App() {
               {/* Ready State Screen */}
               {messages.length === 0 && !isLoading && !result && (
                 <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-                  <div className="w-14 h-14 rounded-2xl bg-[#3D4A5E] flex items-center justify-center border border-[rgba(220,226,240,0.2)] mb-3 text-[#DCE2F0] shadow-xl">
-                    <Zap className="w-7 h-7 stroke-[2.5]" />
+                  <div className="w-12 h-12 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center border border-[var(--border-primary)] mb-3 text-[var(--text-primary)] shadow-sm">
+                    <Zap className="w-5 h-5" />
                   </div>
-                  <h2 className="text-base font-bold text-[#1C2430] mb-1">
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
                     Workspace Ready
                   </h2>
-                  <p className="text-xs text-[#46546A] max-w-sm leading-relaxed">
+                  <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
                     Upload research PDFs, import a GitHub repo, or ask questions directly with multi-pass reasoning.
                   </p>
                 </div>
