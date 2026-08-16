@@ -227,9 +227,10 @@ export default function SupportHub({ onApplyQueryTemplate }) {
       a: "When running large 8B+ models on 4GB VRAM, the OS offloads memory layers to System RAM. To eliminate system lag, click 'AI Platform & Hardware' in the top bar and select the 🟢 Eco Profile (uses llama3.2:3b, 3-6s latency) or ⚡ Cloud Turbo (Groq 70B @ 350+ tok/s)."
     },
     {
-      q: "How does NeuraSearch achieve 0% hallucination rates?",
-      a: "NeuraSearch uses Corrective RAG (CRAG) with HyDE (Hypothetical Document Embeddings), fused BM25 keyword matching, parallel LLM document grading, and automated self-correction loops before returning answers."
+      q: "How does NeuraSearch ensure evidence-grounded generation and prevent hallucinations?",
+      a: "NeuraSearch implements an agentic Corrective RAG (CRAG) graph featuring HyDE hypothetical embeddings, reciprocal rank fusion (BM25 + ChromaDB), parallel document chunk grading, automated query refinement, and an automated hallucination verification loop that validates claims against source citations before delivery."
     },
+
     {
       q: "Can I import private GitHub repositories for code analysis?",
       a: "Yes! Open the '+' menu in the Search Bar, select 'GitHub Integration', paste the repo name or URL, and provide a GitHub Personal Access Token (PAT) with 'repo' scope."

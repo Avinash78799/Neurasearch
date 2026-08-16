@@ -1,6 +1,7 @@
 # NeuraSearch v2.1 🧠⚡
 
-> **High-Fidelity AI Research Assistant & Knowledge Studio with Adaptive Hardware Auto-Tuning, Corrective RAG (CRAG), and Zero-Hallucination Guarantees.**
+> **High-Fidelity AI Research Assistant & Knowledge Studio with Adaptive Hardware Auto-Tuning, Corrective RAG (CRAG), and Evidence-Grounded Generation with Automated Hallucination Detection.**
+
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)

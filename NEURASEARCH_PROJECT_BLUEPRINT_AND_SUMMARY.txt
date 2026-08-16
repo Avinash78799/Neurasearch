@@ -15,15 +15,17 @@ on Corrective Retrieval-Augmented Generation (CRAG), LangGraph multi-agent orche
 vector + lexical sparse search (ChromaDB + BM25Okapi), and adaptive hardware profiling.
 
 It transforms static PDF documents, academic papers, and GitHub codebases into an interactive, 
-grounded intelligence studio with 0% hallucination guarantees, autonomous multi-pass deep research, 
-and workspace-isolated knowledge management.
+grounded intelligence studio with evidence-grounded generation, automated hallucination detection, 
+autonomous multi-pass deep research, and workspace-isolated knowledge management.
 
 Key Technical Philosophy:
-• Zero-Hallucination Grounding: Every assertion is backed by retrieved citations and graded by LLMs.
+• Evidence-Grounded Generation: Every claim is cross-referenced with retrieved citations and verified
+  through an automated LLM hallucination grading loop before final synthesis.
 • Hardware-Aware Profiling: Adapts model sizes, chunk lengths, and retrieval parameters dynamically
   based on whether the user is on an 8GB RAM laptop with a GTX 1650, a gaming rig, or Cloud LPUs.
 • Flagship Editorial Aesthetic: Built to the strict design standards of Linear, Perplexity Pro, and 
   Vercel (Matte Carbon, Precision Slate, Verified Emerald & Focus Cobalt).
+
 
 ----------------------------------------------------------------------------------------------------
 2. COMPLETE WORK ACCOMPLISHED & FEATURE MATRIX
@@ -257,8 +259,9 @@ Prerequisites:
 • Backend Unit Tests: 46 / 46 PASSING (100% OK) in 5.32s
 • Frontend Production Build: Compiled with 0 errors in 5.78s
 • Grounding Score: 94.2% on 10-Dimension Benchmark Suite
-• Hallucination Rate: 0.0% (Enforced by CRAG loop)
+• Hallucination Mitigation: Automated detection & multi-pass self-correction loop
 • Git Status: Clean, all changes committed and synced to origin/main.
+
 
 ====================================================================================================
                         END OF NEURASEARCH BLUEPRINT & SUMMARY
