@@ -2,7 +2,7 @@ import sqlite3
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import settings
 from workspace_service import WorkspaceContext, WorkspaceService
 
@@ -313,6 +313,139 @@ class Database:
                     )
                 """)
 
+                # ── NeuraSearch v2.0 Master Architecture Tables ──────────────
+                # 21. V2 Research Sessions (Tripartite Modes & State Machine)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS research_sessions_v2 (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL DEFAULT 'admin',
+                        workspace_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        mode TEXT NOT NULL, -- 'private', 'online', 'hybrid'
+                        status TEXT NOT NULL, -- 'CREATED', 'PLANNING', 'AWAITING_PERMISSION', 'SEARCHING', 'FETCHING', 'EXTRACTING', 'EVALUATING', 'FILLING_GAPS', 'VERIFYING', 'SYNTHESIZING', 'COMPLETED', 'FAILED', 'CANCELLED'
+                        research_depth TEXT NOT NULL DEFAULT 'standard', -- 'quick', 'standard', 'deep', 'exhaustive'
+                        objective TEXT NOT NULL,
+                        plan_json TEXT, -- Planned sub-questions
+                        final_report TEXT,
+                        synthesis_metadata TEXT,
+                        created_at TEXT NOT NULL,
+                        completed_at TEXT,
+                        FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 22. V2 Research Sources & Provenance
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS research_sources_v2 (
+                        id TEXT PRIMARY KEY,
+                        session_id TEXT NOT NULL,
+                        workspace_id TEXT NOT NULL,
+                        origin TEXT NOT NULL, -- 'private', 'online', 'imported'
+                        url TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        publisher TEXT,
+                        author TEXT,
+                        published_date TEXT,
+                        retrieved_at TEXT NOT NULL,
+                        content_hash TEXT,
+                        source_type TEXT NOT NULL DEFAULT 'webpage',
+                        trust_score REAL DEFAULT 1.0,
+                        raw_snippet TEXT,
+                        is_imported INTEGER DEFAULT 0,
+                        imported_at TEXT,
+                        FOREIGN KEY (session_id) REFERENCES research_sessions_v2(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 23. V2 Research Claims Graph
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS research_claims_v2 (
+                        id TEXT PRIMARY KEY,
+                        session_id TEXT NOT NULL,
+                        claim_text TEXT NOT NULL,
+                        confidence_score REAL DEFAULT 0.9,
+                        status TEXT NOT NULL DEFAULT 'supported', -- 'supported', 'disputed', 'unresolved'
+                        epistemic_category TEXT NOT NULL DEFAULT 'fact', -- 'fact', 'empirical_data', 'interpretation', 'uncertainty'
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (session_id) REFERENCES research_sessions_v2(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 24. V2 Claim Evidence Anchors
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS claim_evidence_v2 (
+                        id TEXT PRIMARY KEY,
+                        claim_id TEXT NOT NULL,
+                        source_id TEXT NOT NULL,
+                        quote_text TEXT NOT NULL,
+                        page_number INTEGER,
+                        section_title TEXT,
+                        relevance_score REAL DEFAULT 1.0,
+                        FOREIGN KEY (claim_id) REFERENCES research_claims_v2(id) ON DELETE CASCADE,
+                        FOREIGN KEY (source_id) REFERENCES research_sources_v2(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 25. V2 Citations First-Class Objects
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS citations_v2 (
+                        id TEXT PRIMARY KEY,
+                        session_id TEXT NOT NULL,
+                        claim_id TEXT NOT NULL,
+                        source_id TEXT NOT NULL,
+                        citation_index INTEGER NOT NULL,
+                        formatted_anchor TEXT NOT NULL,
+                        FOREIGN KEY (session_id) REFERENCES research_sessions_v2(id) ON DELETE CASCADE,
+                        FOREIGN KEY (claim_id) REFERENCES research_claims_v2(id) ON DELETE CASCADE,
+                        FOREIGN KEY (source_id) REFERENCES research_sources_v2(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 26. V2 Outbound Permission Grants (Privacy Firewall)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS permission_grants_v2 (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        session_id TEXT NOT NULL,
+                        proposed_query TEXT NOT NULL,
+                        raw_context_summary TEXT NOT NULL,
+                        destination TEXT NOT NULL, -- External search engine / provider
+                        status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'expired'
+                        granted_at TEXT,
+                        expires_at TEXT NOT NULL,
+                        FOREIGN KEY (session_id) REFERENCES research_sessions_v2(id) ON DELETE CASCADE
+                    )
+                """)
+
+                # 27. V2 Personal Research Memory
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS private_memory_v2 (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        category TEXT NOT NULL, -- 'preference', 'project_context', 'correction', 'recurring_topic'
+                        key TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        confidence REAL DEFAULT 1.0,
+                        source TEXT NOT NULL DEFAULT 'user_explicit',
+                        is_active INTEGER DEFAULT 1,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                """)
+
+                # 28. V2 Privacy Firewall Audit Events
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS privacy_events_v2 (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        session_id TEXT,
+                        event_type TEXT NOT NULL, -- 'BLOCKED_EXTERNAL_CALL', 'OUTBOUND_CONSENT_REQUESTED', 'OUTBOUND_CONSENT_GRANTED', 'OUTBOUND_CONSENT_REJECTED', 'IMPORTED_WEB_TO_PRIVATE'
+                        data_classification TEXT NOT NULL, -- 'PRIVATE', 'PUBLIC', 'USER_APPROVED_PRIVATE', 'IMPORTED'
+                        details_json TEXT NOT NULL,
+                        timestamp TEXT NOT NULL
+                    )
+                """)
+
                 # Seed default admin user
                 cursor.execute("SELECT COUNT(*) FROM users")
                 if cursor.fetchone()[0] == 0:
@@ -328,6 +461,7 @@ class Database:
                     cursor.execute("UPDATE users SET role = 'developer' WHERE username = 'admin'")
                 
                 conn.commit()
+
 
 
             # ── Idempotent Alter Migrations ──────────────────────────────
@@ -1012,5 +1146,297 @@ class Database:
                 "total_highlights": total_highlights
             }
 
+    # ── V2 Master Research Session & Claim Graph Helpers ─────────
+
+    def create_research_session_v2(
+        self,
+        session_id: str,
+        workspace_id: str,
+        title: str,
+        mode: str,
+        objective: str,
+        research_depth: str = "standard",
+        status: str = "CREATED",
+        user_id: str = "admin"
+    ) -> dict:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO research_sessions_v2 (id, user_id, workspace_id, title, mode, status, research_depth, objective, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (session_id, user_id, workspace_id, title, mode, status, research_depth, objective, now)
+            )
+            conn.commit()
+        return self.get_research_session_v2(session_id)
+
+    def update_research_session_v2(
+        self,
+        session_id: str,
+        status: str | None = None,
+        plan_json: str | None = None,
+        final_report: str | None = None,
+        synthesis_metadata: str | None = None,
+        completed_at: str | None = None
+    ) -> None:
+        updates = []
+        params = []
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if plan_json is not None:
+            updates.append("plan_json = ?")
+            params.append(plan_json)
+        if final_report is not None:
+            updates.append("final_report = ?")
+            params.append(final_report)
+        if synthesis_metadata is not None:
+            updates.append("synthesis_metadata = ?")
+            params.append(synthesis_metadata)
+        if completed_at is not None:
+            updates.append("completed_at = ?")
+            params.append(completed_at)
+
+        if not updates:
+            return
+
+        params.append(session_id)
+        with self.get_connection() as conn:
+            conn.execute(
+                f"UPDATE research_sessions_v2 SET {', '.join(updates)} WHERE id = ?",
+                tuple(params)
+            )
+            conn.commit()
+
+    def get_research_session_v2(self, session_id: str) -> dict | None:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT * FROM research_sessions_v2 WHERE id = ?", (session_id,)).fetchone()
+            return dict(row) if row else None
+
+    def list_research_sessions_v2(self, workspace_id: str) -> list:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM research_sessions_v2 WHERE workspace_id = ? ORDER BY created_at DESC",
+                (workspace_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def add_research_source_v2(
+        self,
+        source_id: str,
+        session_id: str,
+        workspace_id: str,
+        origin: str,
+        url: str,
+        title: str,
+        publisher: str | None = None,
+        author: str | None = None,
+        published_date: str | None = None,
+        source_type: str = "webpage",
+        trust_score: float = 1.0,
+        raw_snippet: str | None = None
+    ) -> None:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO research_sources_v2
+                   (id, session_id, workspace_id, origin, url, title, publisher, author, published_date, retrieved_at, source_type, trust_score, raw_snippet)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (source_id, session_id, workspace_id, origin, url, title, publisher, author, published_date, now, source_type, trust_score, raw_snippet)
+            )
+            conn.commit()
+
+    def get_research_sources_v2(self, session_id: str) -> list:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM research_sources_v2 WHERE session_id = ? ORDER BY trust_score DESC, retrieved_at ASC",
+                (session_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def add_research_claim_v2(
+        self,
+        claim_id: str,
+        session_id: str,
+        claim_text: str,
+        confidence_score: float = 0.9,
+        status: str = "supported",
+        epistemic_category: str = "fact"
+    ) -> None:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO research_claims_v2 (id, session_id, claim_text, confidence_score, status, epistemic_category, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (claim_id, session_id, claim_text, confidence_score, status, epistemic_category, now)
+            )
+            conn.commit()
+
+    def get_research_claims_v2(self, session_id: str) -> list:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM research_claims_v2 WHERE session_id = ? ORDER BY created_at ASC",
+                (session_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def add_claim_evidence_v2(
+        self,
+        evidence_id: str,
+        claim_id: str,
+        source_id: str,
+        quote_text: str,
+        page_number: int | None = None,
+        section_title: str | None = None,
+        relevance_score: float = 1.0
+    ) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO claim_evidence_v2 (id, claim_id, source_id, quote_text, page_number, section_title, relevance_score)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (evidence_id, claim_id, source_id, quote_text, page_number, section_title, relevance_score)
+            )
+            conn.commit()
+
+    def add_citation_v2(
+        self,
+        citation_id: str,
+        session_id: str,
+        claim_id: str,
+        source_id: str,
+        citation_index: int,
+        formatted_anchor: str
+    ) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO citations_v2 (id, session_id, claim_id, source_id, citation_index, formatted_anchor)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (citation_id, session_id, claim_id, source_id, citation_index, formatted_anchor)
+            )
+            conn.commit()
+
+    def get_session_citations_v2(self, session_id: str) -> list:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                """SELECT c.*, s.url, s.title as source_title, s.publisher, s.origin
+                   FROM citations_v2 c
+                   JOIN research_sources_v2 s ON c.source_id = s.id
+                   WHERE c.session_id = ?
+                   ORDER BY c.citation_index ASC""",
+                (session_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    # ── V2 Privacy Firewall & Permission Grants ──────────────────
+    def create_permission_grant_v2(
+        self,
+        grant_id: str,
+        session_id: str,
+        proposed_query: str,
+        raw_context_summary: str,
+        destination: str,
+        user_id: str = "admin",
+        ttl_minutes: int = 15
+    ) -> dict:
+        now = datetime.now()
+        expires = (now + timedelta(minutes=ttl_minutes)).isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO permission_grants_v2 (id, user_id, session_id, proposed_query, raw_context_summary, destination, status, expires_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)""",
+                (grant_id, user_id, session_id, proposed_query, raw_context_summary, destination, expires)
+            )
+            conn.commit()
+        return self.get_permission_grant_v2(grant_id)
+
+    def get_permission_grant_v2(self, grant_id: str) -> dict | None:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT * FROM permission_grants_v2 WHERE id = ?", (grant_id,)).fetchone()
+            return dict(row) if row else None
+
+    def update_permission_grant_v2(self, grant_id: str, status: str, proposed_query: str | None = None) -> bool:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            if proposed_query is not None:
+                cursor = conn.execute(
+                    "UPDATE permission_grants_v2 SET status = ?, proposed_query = ?, granted_at = ? WHERE id = ?",
+                    (status, proposed_query, now, grant_id)
+                )
+            else:
+                cursor = conn.execute(
+                    "UPDATE permission_grants_v2 SET status = ?, granted_at = ? WHERE id = ?",
+                    (status, now, grant_id)
+                )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    # ── V2 Personal Research Memory ──────────────────────────────
+    def save_private_memory_v2(
+        self,
+        memory_id: str,
+        user_id: str,
+        category: str,
+        key: str,
+        value: str,
+        confidence: float = 1.0,
+        source: str = "user_explicit"
+    ) -> None:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO private_memory_v2 (id, user_id, category, key, value, confidence, source, is_active, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
+                (memory_id, user_id, category, key, value, confidence, source, now, now)
+            )
+            conn.commit()
+
+    def get_private_memory_v2(self, user_id: str = "admin", active_only: bool = True) -> list:
+        with self.get_connection() as conn:
+            query = "SELECT * FROM private_memory_v2 WHERE user_id = ?"
+            if active_only:
+                query += " AND is_active = 1"
+            query += " ORDER BY category ASC, updated_at DESC"
+            rows = conn.execute(query, (user_id,)).fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_private_memory_v2(self, memory_id: str, user_id: str = "admin") -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute("DELETE FROM private_memory_v2 WHERE id = ? AND user_id = ?", (memory_id, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def purge_all_memory_v2(self, user_id: str = "admin") -> int:
+        with self.get_connection() as conn:
+            cursor = conn.execute("DELETE FROM private_memory_v2 WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return cursor.rowcount
+
+    # ── V2 Privacy Audit Event Logging ───────────────────────────
+    def log_privacy_event_v2(
+        self,
+        event_id: str,
+        user_id: str,
+        event_type: str,
+        data_classification: str,
+        details: dict,
+        session_id: str | None = None
+    ) -> None:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO privacy_events_v2 (id, user_id, session_id, event_type, data_classification, details_json, timestamp)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (event_id, user_id, session_id, event_type, data_classification, json.dumps(details), now)
+            )
+            conn.commit()
+
+    def get_privacy_events_v2(self, limit: int = 50) -> list:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM privacy_events_v2 ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
 
 db = Database()
+

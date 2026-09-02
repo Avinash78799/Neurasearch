@@ -1659,8 +1659,207 @@ async def health_check(context: WorkspaceContext = Depends(get_workspace_context
     }
 
 
+# ════════════════════════════════════════════════════════════════════════
+# ── NEURASEARCH v2.0 API ROUTER (DEEP RESEARCH & PRIVACY FIREWALL) ─────
+# ════════════════════════════════════════════════════════════════════════
+
+v2_router = APIRouter()
+
+
+class V2ResearchRequest(BaseModel):
+    objective: str = Field(..., description="Research objective or question")
+    mode: str = Field(default="private", description="Research mode: 'private', 'online', 'hybrid'")
+    depth: str = Field(default="standard", description="Research depth: 'quick', 'standard', 'deep', 'exhaustive'")
+    session_id: Optional[str] = Field(default=None, description="Optional existing session ID")
+
+
+class V2ApproveOutboundRequest(BaseModel):
+    grant_id: str
+    action: str = Field(..., description="'approved' or 'rejected'")
+    edited_query: Optional[str] = None
+
+
+class V2ImportSourceRequest(BaseModel):
+    url: str
+    title: Optional[str] = None
+    publisher: Optional[str] = None
+    source_id: Optional[str] = None
+
+
+class V2LivingResearchRequest(BaseModel):
+    session_id: str
+    timeframe_days: int = 30
+
+
+class V2MemoryRequest(BaseModel):
+    category: str = Field(..., description="'preference', 'project_context', 'correction', 'recurring_topic'")
+    key: str
+    value: str
+
+
+@v2_router.post("/research/stream")
+async def stream_deep_research(
+    req: V2ResearchRequest,
+    context: WorkspaceContext = Depends(get_workspace_context)
+):
+    """
+    Execute Autonomous Deep Research v2.0 with real-time SSE progress streaming.
+    Enforces privacy boundaries and budget limits based on the selected mode and depth.
+    """
+    from research.agent import AutonomousResearchAgent
+    
+    agent = AutonomousResearchAgent(
+        workspace_id=context.workspace_id,
+        mode=req.mode,
+        depth=req.depth
+    )
+
+    async def event_generator():
+        try:
+            async for sse_chunk in agent.execute_research(req.objective, session_id=req.session_id):
+                yield sse_chunk
+        except Exception as exc:
+            logger.error("Deep research stream error: %s", exc)
+            err_payload = json.dumps({"type": "error", "message": str(exc)})
+            yield f"data: {err_payload}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@v2_router.get("/research/sessions")
+async def list_v2_research_sessions(context: WorkspaceContext = Depends(get_workspace_context)):
+    """List all V2 deep research sessions in the current workspace."""
+    sessions = db.list_research_sessions_v2(context.workspace_id)
+    return {"sessions": sessions}
+
+
+@v2_router.get("/research/sessions/{session_id}")
+async def get_v2_research_session(session_id: str):
+    """Get full details of a V2 research session including sources, claims, and citations."""
+    session = db.get_research_session_v2(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Research session not found")
+
+    sources = db.get_research_sources_v2(session_id)
+    claims = db.get_research_claims_v2(session_id)
+    citations = db.get_session_citations_v2(session_id)
+
+    return {
+        "session": session,
+        "sources": sources,
+        "claims": claims,
+        "citations": citations
+    }
+
+
+@v2_router.post("/research/approve-outbound")
+async def approve_outbound_search(req: V2ApproveOutboundRequest):
+    """Approve or reject a pending outbound search permission grant in Hybrid Mode."""
+    grant = db.get_permission_grant_v2(req.grant_id)
+    if not grant:
+        raise HTTPException(status_code=404, detail="Permission grant not found")
+
+    success = db.update_permission_grant_v2(
+        grant_id=req.grant_id,
+        status=req.action,
+        proposed_query=req.edited_query
+    )
+    db.log_privacy_event_v2(
+        event_id=str(uuid.uuid4()),
+        user_id="admin",
+        event_type=f"OUTBOUND_CONSENT_{req.action.upper()}",
+        data_classification="USER_APPROVED_PRIVATE",
+        details={"grant_id": req.grant_id, "action": req.action, "edited_query": req.edited_query},
+        session_id=grant.get("session_id")
+    )
+    return {"status": "success", "grant_id": req.grant_id, "action": req.action}
+
+
+@v2_router.post("/research/import-source")
+async def import_web_source_to_private(
+    req: V2ImportSourceRequest,
+    context: WorkspaceContext = Depends(get_workspace_context)
+):
+    """1-Click Ingest an online research source into private workspace memory with provenance."""
+    from research.importer import WebSourceImporter
+    result = await WebSourceImporter.import_source(
+        workspace_id=context.workspace_id,
+        url=req.url,
+        title=req.title,
+        publisher=req.publisher,
+        source_id=req.source_id
+    )
+    return result
+
+
+@v2_router.post("/research/update-living")
+async def update_living_research(
+    req: V2LivingResearchRequest,
+    context: WorkspaceContext = Depends(get_workspace_context)
+):
+    """Run an incremental Living Research update on an existing project."""
+    from research.living_research import LivingResearchEngine
+    result = await LivingResearchEngine.update_project(
+        session_id=req.session_id,
+        workspace_id=context.workspace_id,
+        timeframe_days=req.timeframe_days
+    )
+    return result
+
+
+# ── Personal Research Memory Endpoints ───────────────────────────────
+
+@v2_router.get("/memory")
+async def get_user_memory():
+    """Retrieve all personal research preferences and project memories for the user."""
+    from memory.personal_memory import PersonalMemoryService
+    memories = PersonalMemoryService.get_user_memories(user_id="admin")
+    return {"memories": memories}
+
+
+@v2_router.post("/memory")
+async def save_user_memory(req: V2MemoryRequest):
+    """Save a personal research preference or explicit correction."""
+    from memory.personal_memory import PersonalMemoryService
+    item = PersonalMemoryService.save_preference(
+        category=req.category,
+        key=req.key,
+        value=req.value,
+        user_id="admin"
+    )
+    return {"status": "success", "memory": item}
+
+
+@v2_router.delete("/memory/{memory_id}")
+async def delete_single_memory(memory_id: str):
+    """Delete a single personal memory item."""
+    from memory.personal_memory import PersonalMemoryService
+    deleted = PersonalMemoryService.delete_memory(memory_id, user_id="admin")
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Memory item not found")
+    return {"status": "success", "deleted_id": memory_id}
+
+
+@v2_router.delete("/memory")
+async def purge_all_memory():
+    """Purge all personal research memories for the user."""
+    from memory.personal_memory import PersonalMemoryService
+    count = PersonalMemoryService.purge_all_memories(user_id="admin")
+    return {"status": "success", "purged_count": count}
+
+
+# ── Privacy Firewall Audit Log ───────────────────────────────────────
+
+@v2_router.get("/privacy/audit-log")
+async def get_privacy_audit_log(limit: int = 50):
+    """Inspect privacy firewall policy enforcement and audit events."""
+    events = db.get_privacy_events_v2(limit=limit)
+    return {"events": events}
+
+
 app.include_router(v1_router, prefix="/api/v1")
+app.include_router(v2_router, prefix="/api/v2")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.app_port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.app_port, reload=True)

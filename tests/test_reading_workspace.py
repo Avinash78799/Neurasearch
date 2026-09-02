@@ -52,7 +52,8 @@ class TestReadingWorkspace(unittest.TestCase):
             conn.commit()
 
     def run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
+
 
     def test_document_adapter_registry(self):
         """Verifies registry mapping for PDF, MD, and TXT files."""

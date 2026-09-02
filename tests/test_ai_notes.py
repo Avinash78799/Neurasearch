@@ -19,8 +19,9 @@ from core.exceptions import KnowledgeError
 class TestAINotes(unittest.TestCase):
     def run_async(self, coro):
         import asyncio
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro)
+        return asyncio.run(coro)
+
+
 
     def _setup_mock_llm(self, mock_get_llm, raw_response):
         mock_llm = MagicMock()

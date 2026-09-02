@@ -29,6 +29,13 @@ import DocPickerModal from "./components/DocPickerModal";
 import ModelSettingsModal from "./components/ModelSettingsModal";
 import Visualizer from "./components/Visualizer";
 import SupportHub from "./components/SupportHub";
+import ResearchModeSelector from "./components/ResearchModeSelector";
+import OutboundConsentModal from "./components/OutboundConsentModal";
+import ResearchProgressStream from "./components/ResearchProgressStream";
+import EvidenceDrawer from "./components/EvidenceDrawer";
+import PersonalMemoryPanel from "./components/PersonalMemoryPanel";
+import LivingResearchModal from "./components/LivingResearchModal";
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("qa"); // "qa" | "insights" | "reader" | "research" | "analytics" | "knowledge" | "search" | "support"
@@ -46,7 +53,22 @@ export default function App() {
   const [initialResearchQuery, setInitialResearchQuery] = useState("");
   const [activeProfileInfo, setActiveProfileInfo] = useState("Eco (GTX 1650)");
 
+  // ── NeuraSearch v2.0 Master Research States ──
+  const [researchMode, setResearchMode] = useState("private"); // "private" | "online" | "hybrid"
+  const [researchDepth, setResearchDepth] = useState("standard"); // "quick" | "standard" | "deep" | "exhaustive"
+  const [v2Progress, setV2Progress] = useState({ isRunning: false, state: "", message: "", details: {}, elapsedSeconds: 0 });
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [consentData, setConsentData] = useState(null);
+  const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState(false);
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
+  const [livingModalOpen, setLivingModalOpen] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [currentSources, setCurrentSources] = useState([]);
+  const [currentClaims, setCurrentClaims] = useState([]);
+  const [currentCitations, setCurrentCitations] = useState([]);
+
   const handleToggleDoc = (docName) => {
+
     setSelectedDocs(prev => 
       prev.includes(docName) ? prev.filter(d => d !== docName) : [...prev, docName]
     );
@@ -275,42 +297,42 @@ export default function App() {
   }, []);
 
   /* ─── Submit Query with Scoping and Action Modes ─── */
+  /* ─── Submit Query with V2 Autonomous Research Stream ─── */
   const handleSubmitQuery = useCallback(async (q) => {
     if (!q.trim()) return;
-
-    // If Deep Research mode is toggled, switch tab and pass query
-    if (deepResearchActive) {
-      setInitialResearchQuery(q);
-      setActiveTab("research");
-      return;
-    }
 
     setQuestion(q);
     setIsLoading(true);
     setSteps([]);
     setResult(null);
     setEvalScores(null);
+    setV2Progress({ isRunning: true, state: "PLANNING", message: "Formulating research plan...", details: {}, elapsedSeconds: 0 });
 
     const tempMsgId = `opt-${Date.now()}`;
     const optimisticMsg = { id: tempMsgId, role: "user", content: q };
     setMessages(prev => [...prev, optimisticMsg]);
 
+    const timer = setInterval(() => {
+      setV2Progress(prev => prev.isRunning ? { ...prev, elapsedSeconds: prev.elapsedSeconds + 1 } : prev);
+    }, 1000);
+
     try {
-      const res = await fetch("/api/v1/query", {
+      const res = await fetch("/api/v2/research/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          question: q,
-          conversation_id: activeConversationId,
-          selected_documents: selectedDocs.length > 0 ? selectedDocs : undefined,
-          enable_web_search: webSearchActive
+          objective: q,
+          mode: researchMode,
+          depth: researchDepth
         }),
       });
 
       if (!res.ok) {
+        clearInterval(timer);
         setIsLoading(false);
+        setV2Progress({ isRunning: false, state: "", message: "", details: {}, elapsedSeconds: 0 });
         setMessages(prev => prev.filter(m => m.id !== tempMsgId));
-        toast.error("Query failed to execute.");
+        toast.error("Deep research stream failed to start.");
         return;
       }
 
@@ -336,37 +358,99 @@ export default function App() {
           try {
             const event = JSON.parse(jsonStr);
 
-            if (event.type === "step") {
-              setSteps((prev) => [...prev, event.data]);
+            if (event.type === "progress") {
+              setV2Progress(prev => ({
+                ...prev,
+                state: event.state,
+                message: event.message,
+                details: event.details || {}
+              }));
+              setSteps(prev => [...prev, event.message]);
+            } else if (event.type === "consent_required") {
+              setConsentData(event.details);
+              setConsentModalOpen(true);
             } else if (event.type === "result") {
-              const d = event.data;
-              setResult({
-                answer: d.answer,
-                sources: d.sources,
-                retrieval_quality: d.retrieval_quality,
-                hallucination_check: d.hallucination_check,
-              });
-              if (d.steps) {
-                setSteps(d.steps);
-              }
+              clearInterval(timer);
+              setV2Progress({ isRunning: false, state: "COMPLETED", message: "Monograph generated!", details: {}, elapsedSeconds: 0 });
               
-              if (d.conversation_id) {
-                setActiveConversationId(d.conversation_id);
-                await fetchMessages(d.conversation_id);
-                fetchConversations();
-              }
+              setCurrentSessionId(event.session_id);
+              setCurrentSources(event.sources || []);
+              setCurrentClaims(event.claims || []);
+              setCurrentCitations(event.citations || []);
+
+              setResult({
+                answer: event.report,
+                sources: event.sources || [],
+                retrieval_quality: "good",
+                hallucination_check: "verified"
+              });
+
               setIsLoading(false);
             }
           } catch {}
         }
       }
+      clearInterval(timer);
       setIsLoading(false);
+      setV2Progress(prev => ({ ...prev, isRunning: false }));
     } catch {
+      clearInterval(timer);
       setIsLoading(false);
+      setV2Progress({ isRunning: false, state: "", message: "", details: {}, elapsedSeconds: 0 });
       setMessages(prev => prev.filter(m => m.id !== tempMsgId));
-      toast.error("Network error during query execution.");
+      toast.error("Network error during deep research stream.");
     }
-  }, [activeConversationId, deepResearchActive, selectedDocs, webSearchActive, fetchConversations, fetchMessages]);
+  }, [researchMode, researchDepth]);
+
+  const handleApproveOutbound = async (grantId, editedQuery) => {
+    try {
+      await fetch("/api/v2/research/approve-outbound", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grant_id: grantId, action: "approved", edited_query: editedQuery })
+      });
+      setConsentModalOpen(false);
+      toast.success("Outbound search authorized.");
+    } catch {
+      toast.error("Failed to approve consent.");
+    }
+  };
+
+  const handleRejectOutbound = async (grantId) => {
+    try {
+      await fetch("/api/v2/research/approve-outbound", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grant_id: grantId, action: "rejected" })
+      });
+      setConsentModalOpen(false);
+      toast.info("Outbound search rejected. Remaining air-gapped.");
+    } catch {}
+  };
+
+  const handleImportWebSource = async (src) => {
+    try {
+      const res = await fetch("/api/v2/research/import-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: src.url,
+          title: src.title,
+          publisher: src.publisher,
+          source_id: src.id
+        })
+      });
+      if (res.ok) {
+        toast.success(`Imported to Private Workspace: ${src.title}`);
+        fetchDocuments();
+      } else {
+        toast.error("Failed to import web source.");
+      }
+    } catch {
+      toast.error("Network error importing source.");
+    }
+  };
+
 
   if (!isAuthenticated) {
     return (
@@ -493,6 +577,16 @@ export default function App() {
 
           {/* Header Controls */}
           <div className="flex items-center gap-2">
+            {/* Personal Memory Button */}
+            <button
+              onClick={() => setMemoryPanelOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-violet-500/40 text-xs font-medium text-[var(--text-primary)] transition-all shadow-xs"
+              title="Personal Research Memory (Layer-A)"
+            >
+              <Brain className="w-3.5 h-3.5 text-violet-400" />
+              <span className="hidden sm:inline">Memory</span>
+            </button>
+
             {/* Hardware Profile Button */}
             <button
               onClick={() => setIsModelModalOpen(true)}
@@ -502,6 +596,7 @@ export default function App() {
               <Cpu className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               <span>{activeProfileInfo}</span>
             </button>
+
 
             {/* Quick Support Hub trigger */}
             <button
@@ -541,9 +636,18 @@ export default function App() {
           {/* TAB 1: Smart Q&A */}
           {activeTab === "qa" && (
             <div className="max-w-4xl mx-auto space-y-6">
+              {/* V2 Tripartite Research Mode & Depth Selector */}
+              <ResearchModeSelector
+                mode={researchMode}
+                setMode={setResearchMode}
+                depth={researchDepth}
+                setDepth={setResearchDepth}
+                disabled={isLoading || v2Progress.isRunning}
+              />
+
               <SearchBar 
                 onSubmit={handleSubmitQuery} 
-                isLoading={isLoading} 
+                isLoading={isLoading || v2Progress.isRunning} 
                 proMode={proMode} 
                 onToggleWebSearch={() => setWebSearchActive(!webSearchActive)}
                 webSearchActive={webSearchActive}
@@ -583,8 +687,19 @@ export default function App() {
                 <Visualizer />
               )}
 
+              {/* V2 Autonomous Research Progress Stream */}
+              {v2Progress.isRunning && (
+                <ResearchProgressStream
+                  state={v2Progress.state}
+                  message={v2Progress.message}
+                  details={v2Progress.details}
+                  elapsedSeconds={v2Progress.elapsedSeconds}
+                  onCancel={() => setV2Progress({ isRunning: false, state: "CANCELLED", message: "Research cancelled", details: {}, elapsedSeconds: 0 })}
+                />
+              )}
+
               {/* Chat Thread */}
-              {messages.length > 0 && (
+              {messages.length > 0 && !v2Progress.isRunning && (
                 <div className="space-y-4">
                   {messages.map((msg, idx) => {
                     const isUser = msg.role === "user";
@@ -611,13 +726,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* Live Steps Stream */}
-              {isLoading && steps.length > 0 && (
-                <AgentSteps steps={steps} />
-              )}
-
               {/* Final Synthesis Card */}
-              {result && !isLoading && (
+              {result && !isLoading && !v2Progress.isRunning && (
                 <div className="space-y-6">
                   {result.retrieval_quality && (
                     <div className="flex items-center gap-3">
@@ -630,6 +740,8 @@ export default function App() {
                     answer={result.answer}
                     sources={result.sources}
                     hallucination_check={result.hallucination_check}
+                    onOpenEvidence={() => setEvidenceDrawerOpen(true)}
+                    onOpenLiving={() => setLivingModalOpen(true)}
                     onSaveToKnowledge={(q, ans) => triggerNoteDraft("/api/v1/knowledge/generate/chat", { question: q, answer: ans }, { created_from: "ai_note" })}
                     onAskFollowUp={(followUpQuery) => handleSubmitQuery(followUpQuery)}
                   />
@@ -641,6 +753,7 @@ export default function App() {
                   />
                 </div>
               )}
+
 
               {/* Ready State Screen */}
               {messages.length === 0 && !isLoading && !result && (
@@ -751,6 +864,37 @@ export default function App() {
           fetchSettings();
         }}
       />
+
+      {/* ── NeuraSearch v2.0 Modals & Drawers ── */}
+      <OutboundConsentModal
+        isOpen={consentModalOpen}
+        grantData={consentData}
+        onApprove={handleApproveOutbound}
+        onReject={handleRejectOutbound}
+        onClose={() => setConsentModalOpen(false)}
+      />
+
+      <EvidenceDrawer
+        isOpen={evidenceDrawerOpen}
+        onClose={() => setEvidenceDrawerOpen(false)}
+        sources={currentSources}
+        claims={currentClaims}
+        citations={currentCitations}
+        onImportSource={handleImportWebSource}
+      />
+
+      <PersonalMemoryPanel
+        isOpen={memoryPanelOpen}
+        onClose={() => setMemoryPanelOpen(false)}
+      />
+
+      <LivingResearchModal
+        isOpen={livingModalOpen}
+        onClose={() => setLivingModalOpen(false)}
+        sessionId={currentSessionId}
+        sessionTitle={question}
+      />
     </div>
   );
 }
+

@@ -124,7 +124,28 @@ export default function AnswerCard({
 
         {/* Actions */}
         {answer && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {onOpenEvidence && (
+              <button
+                onClick={onOpenEvidence}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-xs font-medium text-blue-300 transition-all shadow-xs"
+                title="Inspect Claim-to-Evidence Graph"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                <span>Evidence Graph</span>
+              </button>
+            )}
+
+            {onOpenLiving && (
+              <button
+                onClick={onOpenLiving}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-medium text-emerald-300 transition-all shadow-xs"
+                title="Update with Living Research"
+              >
+                <span>Update (30d)</span>
+              </button>
+            )}
+
             <button
               onClick={handleCopy}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-primary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
@@ -187,28 +208,45 @@ export default function AnswerCard({
       {/* Grounded Source Citations */}
       {sources && sources.length > 0 && (
         <div className="px-5 py-3 border-t border-[var(--border-primary)] bg-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Sources ({sources.length}):
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {sources.map((src, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] text-[var(--text-secondary)] font-mono"
-                >
-                  <FileText className="w-3 h-3 text-[var(--text-muted)]" />
-                  {src}
-                </span>
-              ))}
+              {sources.map((src, idx) => {
+                const isObj = typeof src === "object";
+                const name = isObj ? src.title || src.url : src;
+                const origin = isObj ? src.origin || "online" : "private";
+
+                return (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-primary)] text-[11px] text-[var(--text-secondary)] font-mono"
+                  >
+                    <span
+                      className={`text-[8px] uppercase px-1 py-0.2 rounded font-bold ${
+                        origin === "private"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : origin === "imported"
+                          ? "bg-violet-500/20 text-violet-400"
+                          : "bg-blue-500/20 text-blue-400"
+                      }`}
+                    >
+                      {origin}
+                    </span>
+                    <span className="truncate max-w-[150px]">{name}</span>
+                  </span>
+                );
+              })}
             </div>
           </div>
 
-          <span className="text-[10px] font-mono text-[var(--text-muted)]">
-            Verified Retrieval
+          <span className="text-[10px] font-mono text-emerald-400 font-medium">
+            Evidence-Grounded
           </span>
         </div>
       )}
     </div>
   );
 }
+

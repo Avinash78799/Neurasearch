@@ -60,8 +60,8 @@ class TestKnowledgePages(unittest.TestCase):
 
     def run_async(self, coro):
         import asyncio
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro)
+        return asyncio.run(coro)
+
 
     def test_reference_management(self):
         """Verifies adding, retrieving, and deleting references on a page."""

@@ -84,8 +84,8 @@ class TestKnowledgeSearch(unittest.TestCase):
 
     def run_async(self, coro):
         import asyncio
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(coro)
+        return asyncio.run(coro)
+
 
     def test_workspace_isolation(self):
         """Verifies that search queries do not return items from other workspaces."""
