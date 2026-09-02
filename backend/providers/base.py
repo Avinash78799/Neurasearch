@@ -62,9 +62,10 @@ class FetchedDocument:
 @dataclass
 class LLMResponse:
     content: str
-    model: str
+    model: str = "default"
     tokens_used: int = 0
     finish_reason: str = "stop"
+
 
 
 class LLMProvider(Protocol):

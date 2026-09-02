@@ -68,16 +68,29 @@ class WebSourceImporter:
 
         # 4. Record in SQLite Database
         import_record_id = str(uuid.uuid4())
+        import json
         db.save_knowledge_item(
-            id=import_record_id,
-            workspace_id=workspace_id,
+            item_id=import_record_id,
             title=f"Imported: {source_title}",
-            item_type="imported_source",
             content=fetched.content[:4000],
-            tags=f"imported,web,{fetched.publisher or 'online'}",
-            source_document_id=url,
-            citation_anchor=url
+            summary=fetched.content[:200],
+            item_type="imported_source",
+            status="active",
+            version=1,
+            is_pinned=0,
+            color=None,
+            icon="globe",
+            created_from="web_import",
+            research_session_id=None,
+            research_report_id=None,
+            document_id=url,
+            document_title=source_title,
+            evidence_package_index=None,
+            metadata=json.dumps(metadata),
+            slug=f"imported-{uuid.uuid4().hex[:8]}",
+            context=ctx
         )
+
 
         db.log_privacy_event_v2(
             event_id=str(uuid.uuid4()),

@@ -14,7 +14,8 @@ EMAIL_PATTERN = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 PHONE_PATTERN = r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
 IP_PATTERN = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
 FINANCIAL_PATTERN = r"[\$€£¥]\s*\d+(?:[.,]\d+)*(?:\s*(?:million|billion|k|M|B))?"
-INTERNAL_CODE_PATTERN = r"\b(?:API_[A-Z0-9_]+|SECRET_[A-Z0-9_]+|KEY-[A-Z0-9]+|CONFIDENTIAL-[A-Z0-9]+)\b"
+INTERNAL_CODE_PATTERN = r"\b(?:API_[A-Z0-9_]+|SECRET_[A-Z0-9_]+|PRIVATE_[A-Z0-9_]+|KEY-[A-Z0-9]+|CONFIDENTIAL-[A-Z0-9]+)\b"
+
 
 
 def sanitize_and_generalize_query(raw_query: str, private_context: str = "") -> Tuple[str, List[str], Dict[str, Any]]:
