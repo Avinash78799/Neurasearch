@@ -23,12 +23,12 @@ from workspace_service import WorkspaceContext
 
 logger = logging.getLogger(__name__)
 
-# ── In-memory Cache of Loaded Indices ─────────────────────────────────
+# In-memory Cache of Loaded Indices
 # Structure: {workspace_id: {"bm25": BM25Okapi, "documents": list[Document], "tokenized_corpus": list[list[str]]}}
 _indices: dict[str, dict[str, Any]] = {}
 
 
-# ── Tokenisation ──────────────────────────────────────────────────────
+# Tokenisation
 
 
 def _tokenize(text: str) -> list[str]:
@@ -36,7 +36,7 @@ def _tokenize(text: str) -> list[str]:
     return text.lower().split()
 
 
-# ── Context and Path Resolution ───────────────────────────────────────
+# Context and Path Resolution
 
 
 def _resolve_context(context: WorkspaceContext | str | None) -> WorkspaceContext:
@@ -77,7 +77,7 @@ def _save_index(workspace_id: str) -> None:
         raise
 
 
-# ── Public API ────────────────────────────────────────────────────────
+# Public API
 
 
 def build_index(documents: list[Document], context: WorkspaceContext | str | None = None) -> None:
