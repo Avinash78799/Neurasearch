@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -12,7 +12,10 @@ from config import settings
 import secrets
 from pathlib import Path
 
+# Silence passlib trapped bcrypt.__about__.__version__ warning on Python 3.12+
+logging.getLogger("passlib").setLevel(logging.ERROR)
 logger = logging.getLogger("neurasearch.auth")
+
 
 def _get_or_create_jwt_secret() -> str:
 
@@ -76,13 +79,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create an encoded JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return encoded_jwt
+
 
 
 def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
