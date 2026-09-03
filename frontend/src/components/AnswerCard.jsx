@@ -63,6 +63,23 @@ export default function AnswerCard({
   };
 
   const markdownComponents = {
+    a({ href, children, ...props }) {
+      const isSafe = href && (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("#") || href.startsWith("/"));
+      if (!isSafe) {
+        return <span className="text-[var(--text-muted)] underline cursor-not-allowed" title="Blocked unsafe URI scheme">{children}</span>;
+      }
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-cyan-400 hover:text-cyan-300 underline font-medium break-all"
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
     code({ className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || "");
       return match ? (
@@ -90,6 +107,7 @@ export default function AnswerCard({
       );
     }
   };
+
 
   return (
     <div className={`rounded-xl border transition-all duration-200 overflow-hidden glass-card ${isHallucination ? "border-red-500/30" : "border-[var(--border-primary)]"}`}>

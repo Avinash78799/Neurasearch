@@ -751,6 +751,15 @@ class Database:
             ).fetchone()
             return dict(row) if row else None
 
+    def create_user(self, username: str, password_hash: str, role: str = "user") -> None:
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO users (username, password_hash, role, must_rotate_password, created_at) VALUES (?, ?, ?, 0, ?)",
+                (username, password_hash, role, now)
+            )
+            conn.commit()
+
     def update_user_password(self, username: str, new_password_hash: str) -> bool:
         with self.get_connection() as conn:
             cursor = conn.execute(
@@ -759,6 +768,7 @@ class Database:
             )
             conn.commit()
             return cursor.rowcount > 0
+
 
 
 

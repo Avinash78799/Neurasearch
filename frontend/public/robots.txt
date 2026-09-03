@@ -1,0 +1,7 @@
+# NeuraSearch — Robots Exclusion Standard
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /token
+
+Sitemap: /sitemap.xml

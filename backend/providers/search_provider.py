@@ -141,16 +141,23 @@ class ArXivSearchProvider:
         import httpx
         import xml.etree.ElementTree as ET
 
-        url = f"http://export.arxiv.org/api/query?search_query=all:{clean_query}&start=0&max_results={num_results}"
+        url = f"https://export.arxiv.org/api/query?search_query=all:{clean_query}&start=0&max_results={num_results}"
         try:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=False) as client:
                 resp = await client.get(url)
-                if resp.status_code != 200:
+                if resp.status_code != 200 or len(resp.content) > 5 * 1024 * 1024:
                     return []
                 
-                root = ET.fromstring(resp.text)
+                # Defend against XXE and Billion Laughs XML entity expansion attacks
+                resp_text = resp.text
+                if "<!DOCTYPE" in resp_text or "<!ENTITY" in resp_text:
+                    logger.warning("Rejected suspicious XML payload containing DOCTYPE/ENTITY from external endpoint.")
+                    return []
+
+                root = ET.fromstring(resp_text)
                 ns = {"atom": "http://www.w3.org/2005/Atom"}
                 results = []
+
                 for entry in root.findall("atom:entry", ns):
                     title_elem = entry.find("atom:title", ns)
                     summary_elem = entry.find("atom:summary", ns)

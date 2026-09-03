@@ -87,6 +87,23 @@ class WorkspaceService:
                 ).fetchall()
             return [dict(r) for r in rows]
 
+    @staticmethod
+    def verify_workspace_access(workspace_id: str, username: str | None = None) -> bool:
+        """Verify if a user has authorization to access the requested workspace."""
+        if not workspace_id or workspace_id == settings.default_workspace_id:
+            return True
+        if not username or username == "admin":
+            return True
+        
+        ws = WorkspaceService.get_workspace(workspace_id)
+        if not ws:
+            # If workspace doesn't exist yet, non-admins cannot access it
+            return False
+        
+        owner = ws.get("owner_user")
+        return owner == username or owner is None or owner == "admin"
+
+
 
     @staticmethod
     def ensure_default_workspace() -> None:

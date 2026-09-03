@@ -17,14 +17,23 @@ logger = logging.getLogger("neurasearch.providers.fetcher")
 
 # Blocked private and internal IP subnets to prevent SSRF attacks
 BLOCKED_IP_NETWORKS = [
-    ipaddress.ip_network("127.0.0.0/8"),       # Loopback
-    ipaddress.ip_network("10.0.0.0/8"),        # Private Class A
-    ipaddress.ip_network("172.16.0.0/12"),     # Private Class B
-    ipaddress.ip_network("192.168.0.0/16"),    # Private Class C
-    ipaddress.ip_network("169.254.0.0/16"),    # Link-local / Cloud metadata
-    ipaddress.ip_network("::1/128"),           # IPv6 Loopback
-    ipaddress.ip_network("fc00::/7"),          # IPv6 Unique Local
+    ipaddress.ip_network("0.0.0.0/8"),          # Current network
+    ipaddress.ip_network("127.0.0.0/8"),        # IPv4 Loopback
+    ipaddress.ip_network("10.0.0.0/8"),         # Private Class A
+    ipaddress.ip_network("100.64.0.0/10"),      # Carrier-grade NAT
+    ipaddress.ip_network("172.16.0.0/12"),      # Private Class B
+    ipaddress.ip_network("192.168.0.0/16"),     # Private Class C
+    ipaddress.ip_network("169.254.0.0/16"),     # Link-local / Cloud metadata
+    ipaddress.ip_network("198.18.0.0/15"),      # Network benchmark testing
+    ipaddress.ip_network("224.0.0.0/4"),        # Multicast
+    ipaddress.ip_network("240.0.0.0/4"),        # Reserved / Future use
+    ipaddress.ip_network("::1/128"),            # IPv6 Loopback
+    ipaddress.ip_network("fc00::/7"),           # IPv6 Unique Local
+    ipaddress.ip_network("fe80::/10"),          # IPv6 Link-Local
+    ipaddress.ip_network("::ffff:0:0/96"),      # IPv4-mapped IPv6
 ]
+
+ALLOWED_PORTS = {80, 443, 8080, 8443}
 
 
 def is_safe_url(url: str) -> bool:
@@ -38,23 +47,41 @@ def is_safe_url(url: str) -> bool:
         if not hostname:
             return False
             
-        # Reject direct localhost names
-        if hostname.lower() in ("localhost", "127.0.0.1", "::1", "metadata.google.internal"):
+        # Reject direct localhost and internal metadata names
+        lower_host = hostname.lower()
+        if lower_host in ("localhost", "127.0.0.1", "::1", "metadata.google.internal", "instance-data", "169.254.169.254"):
             return False
 
-        # Resolve IP and check against blacklisted networks
-        ip_addr = socket.gethostbyname(hostname)
-        ip_obj = ipaddress.ip_address(ip_addr)
+        # Port validation: block non-standard ports to prevent internal port scanning
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        if port not in ALLOWED_PORTS:
+            logger.warning("SSRF blocked non-standard port: %s in URL %s", port, url)
+            return False
 
-        for blocked_net in BLOCKED_IP_NETWORKS:
-            if ip_obj in blocked_net:
-                logger.warning("SSRF blocked attempt to access private IP: %s (hostname: %s)", ip_addr, hostname)
-                return False
+        # Resolve all IPs (both IPv4 and IPv6) and check against blacklisted networks
+        try:
+            addr_info = socket.getaddrinfo(hostname, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except socket.gaierror:
+            return False
+
+        for family, socktype, proto, canonname, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            ip_obj = ipaddress.ip_address(ip_str)
+
+            # Convert IPv4-mapped IPv6 if needed
+            if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+                ip_obj = ip_obj.ipv4_mapped
+
+            for blocked_net in BLOCKED_IP_NETWORKS:
+                if ip_obj in blocked_net:
+                    logger.warning("SSRF blocked attempt to access private IP: %s (hostname: %s)", ip_str, hostname)
+                    return False
 
         return True
     except Exception as exc:
         logger.warning("URL security validation failed for %s: %s", url, exc)
         return False
+
 
 
 def sanitize_untrusted_content(text: str) -> str:

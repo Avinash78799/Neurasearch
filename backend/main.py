@@ -8,8 +8,9 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from pydantic import BaseModel, Field
+
 
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Depends, status, Request, APIRouter
@@ -58,13 +59,42 @@ def get_workspace_context(request: Request) -> WorkspaceContext:
     if not workspace_id:
         workspace_id = settings.default_workspace_id
     username = getattr(request.state, "username", None)
+    
+    if not WorkspaceService.verify_workspace_access(workspace_id, username):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied: you do not have authorization to access workspace '{workspace_id}'."
+        )
+
     return WorkspaceContext(workspace_id=workspace_id, username=username)
+
+
+# ── Production Security Headers Middleware ───────────────────────────
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*; "
+        "frame-ancestors 'none'; "
+        "object-src 'none'; "
+        "base-uri 'self';"
+    )
+    return response
 
 
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173"],
+    allow_origins=[settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -180,17 +210,16 @@ class DeveloperVerifyRequest(BaseModel):
 @v1_router.post("/auth/developer-verify")
 async def verify_developer_access(req: DeveloperVerifyRequest):
     """Authenticate developer access for system maintenance and low-level diagnostics."""
-    user = await asyncio.to_thread(db.get_user, req.username or "admin")
+    username = req.username or "admin"
+    user = await asyncio.to_thread(db.get_user, username)
     if not user or not await asyncio.to_thread(verify_password, req.password, user["password_hash"]):
-        # Also allow developer master key if specified
-        if req.password == "developer123" or req.password == "admin":
-            return {"authenticated": True, "role": "developer", "username": "developer"}
         raise HTTPException(status_code=401, detail="Invalid developer credentials.")
     
-    if user.get("role") != "developer" and user["username"] != "admin":
+    if user.get("role") not in ("developer", "admin") and user["username"] != "admin":
         raise HTTPException(status_code=403, detail="User does not have Developer/Admin privileges.")
     
-    return {"authenticated": True, "role": "developer", "username": user["username"]}
+    return {"authenticated": True, "role": user.get("role", "developer"), "username": user["username"]}
+
 
 
 @v1_router.get("/auth/me")
@@ -316,12 +345,13 @@ async def create_workspace_route(req: WorkspaceCreateRequest, context: Workspace
 
 
 @v1_router.post("/workspaces/export/{workspace_id}")
-async def export_workspace_route(workspace_id: str):
+async def export_workspace_route(workspace_id: str, current_user: str = Depends(get_current_user)):
     """Export workspace knowledge assets to a JSON object."""
+    if not WorkspaceService.verify_workspace_access(workspace_id, current_user):
+        raise HTTPException(status_code=403, detail="Access denied: unauthorized to export this workspace.")
     from workspace_transfer_service import WorkspaceTransferService
     import tempfile
     
-    # Create temporary file
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
         tmp_path = tmp.name
         
@@ -330,10 +360,23 @@ async def export_workspace_route(workspace_id: str):
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export workspace: {e}")
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 @v1_router.post("/workspaces/import/{workspace_id}")
-async def import_workspace_route(workspace_id: str, file: UploadFile = File(...)):
+async def import_workspace_route(workspace_id: str, file: UploadFile = File(...), current_user: str = Depends(get_current_user)):
     """Import workspace knowledge assets from an uploaded JSON archive file."""
+    if not WorkspaceService.verify_workspace_access(workspace_id, current_user):
+        raise HTTPException(status_code=403, detail="Access denied: unauthorized to import into this workspace.")
+    
+    clean_filename = os.path.basename(file.filename.replace("\\", "/")) if file.filename else "import.json"
+    if not clean_filename.lower().endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only JSON archive files are supported for workspace import.")
+        
     from workspace_transfer_service import WorkspaceTransferService
     import tempfile
     
@@ -342,6 +385,8 @@ async def import_workspace_route(workspace_id: str, file: UploadFile = File(...)
         
     try:
         content = await file.read()
+        if len(content) > 50 * 1024 * 1024:  # 50MB limit
+            raise HTTPException(status_code=400, detail="Uploaded workspace archive exceeds 50MB limit.")
         with open(tmp_path, "wb") as f:
             f.write(content)
             
@@ -349,6 +394,12 @@ async def import_workspace_route(workspace_id: str, file: UploadFile = File(...)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to import workspace: {e}")
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 @app.get("/")
 async def root_endpoint():
@@ -392,35 +443,51 @@ class SettingsUpdateRequest(BaseModel):
 
 @v1_router.post("/ingest")
 async def ingest_document(file: UploadFile = File(...), background_tasks: BackgroundTasks = None, context: WorkspaceContext = Depends(get_workspace_context)):
-    """Upload and ingest a PDF or text document, then trigger insights extraction."""
-    logger.info("Received ingestion request for: %s", file.filename)
+    """Upload and ingest a PDF, Word, PowerPoint, or text document with validation."""
+    clean_filename = os.path.basename(file.filename.replace("\\", "/")) if file.filename else ""
+    if not clean_filename or clean_filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid or empty filename.")
+    
+    allowed_extensions = {".pdf", ".txt", ".docx", ".doc", ".pptx", ".ppt", ".md", ".csv", ".json", ".log", ".rst"}
+    ext = Path(clean_filename).suffix.lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type '{ext}'. Allowed extensions: {', '.join(sorted(allowed_extensions))}"
+        )
+        
+    logger.info("Received ingestion request for: %s (workspace: %s)", clean_filename, context.workspace_id)
     try:
         # Gating document counts for free tier
         if not settings.pro_mode:
             existing_sources = await asyncio.to_thread(list_sources, context)
-            if len(existing_sources) >= settings.max_documents_free and file.filename not in existing_sources:
+            if len(existing_sources) >= settings.max_documents_free and clean_filename not in existing_sources:
                 raise HTTPException(
                     status_code=403, 
                     detail=f"Free Tier limit reached. Maximum {settings.max_documents_free} documents allowed. Please upgrade to Pro."
                 )
 
         content = await file.read()
-        stats = await asyncio.to_thread(ingest_bytes, content, file.filename, context)
+        if len(content) > 50 * 1024 * 1024:  # 50MB limit
+            raise HTTPException(status_code=400, detail="File size exceeds maximum allowable limit (50MB).")
+
+        stats = await asyncio.to_thread(ingest_bytes, content, clean_filename, context)
         if stats.get("status") != "success":
             raise HTTPException(status_code=400, detail=stats.get("status"))
 
         # Queue insights generator task
         if background_tasks:
-            background_tasks.add_task(generate_insights_task, file.filename, context.workspace_id)
+            background_tasks.add_task(generate_insights_task, clean_filename, context.workspace_id)
         else:
-            asyncio.create_task(generate_insights_task(file.filename, context.workspace_id))
+            asyncio.create_task(generate_insights_task(clean_filename, context.workspace_id))
 
         return stats
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to ingest document %s: %s", file.filename, e, exc_info=True)
+        logger.error("Failed to ingest document %s: %s", clean_filename, e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
 
 
 @v1_router.post("/query")
@@ -1290,8 +1357,12 @@ async def get_settings_endpoint():
 
 
 @v1_router.put("/settings")
-async def update_settings_endpoint(req: SettingsUpdateRequest):
-    """Update configurable settings and active model provider."""
+async def update_settings_endpoint(req: SettingsUpdateRequest, current_user: str = Depends(get_current_user)):
+    """Update configurable settings and active model provider (Admin only)."""
+    user = await asyncio.to_thread(db.get_user, current_user)
+    if not user or (user.get("role") != "admin" and current_user != "admin"):
+        raise HTTPException(status_code=403, detail="Admin authorization required to modify system settings.")
+        
     if req.pro_mode is not None:
         settings.pro_mode = req.pro_mode
     if req.enable_hallucination_check is not None:
@@ -1325,6 +1396,7 @@ async def update_settings_endpoint(req: SettingsUpdateRequest):
             "has_openai_key": bool(settings.openai_api_key),
         }
     }
+
 
 
 @v1_router.get("/usage")
@@ -1639,9 +1711,13 @@ async def create_support_ticket_endpoint(req: SupportTicketRequest):
     )
 
 @v1_router.get("/support/tickets")
-async def list_support_tickets_endpoint():
-    """List submitted support tickets."""
+async def list_support_tickets_endpoint(current_user: str = Depends(get_current_user)):
+    """List submitted support tickets (Admin only)."""
+    user = await asyncio.to_thread(db.get_user, current_user)
+    if not user or (user.get("role") != "admin" and current_user != "admin"):
+        raise HTTPException(status_code=403, detail="Admin authorization required to list support tickets.")
     return {"tickets": SupportService.list_support_tickets()}
+
 
 
 
@@ -1867,42 +1943,43 @@ async def update_living_research(
 # ── Personal Research Memory Endpoints ───────────────────────────────
 
 @v2_router.get("/memory")
-async def get_user_memory():
+async def get_user_memory(current_user: str = Depends(get_current_user)):
     """Retrieve all personal research preferences and project memories for the user."""
     from memory.personal_memory import PersonalMemoryService
-    memories = PersonalMemoryService.get_user_memories(user_id="admin")
+    memories = PersonalMemoryService.get_user_memories(user_id=current_user)
     return {"memories": memories}
 
 
 @v2_router.post("/memory")
-async def save_user_memory(req: V2MemoryRequest):
+async def save_user_memory(req: V2MemoryRequest, current_user: str = Depends(get_current_user)):
     """Save a personal research preference or explicit correction."""
     from memory.personal_memory import PersonalMemoryService
     item = PersonalMemoryService.save_preference(
         category=req.category,
         key=req.key,
         value=req.value,
-        user_id="admin"
+        user_id=current_user
     )
     return {"status": "success", "memory": item}
 
 
 @v2_router.delete("/memory/{memory_id}")
-async def delete_single_memory(memory_id: str):
+async def delete_single_memory(memory_id: str, current_user: str = Depends(get_current_user)):
     """Delete a single personal memory item."""
     from memory.personal_memory import PersonalMemoryService
-    deleted = PersonalMemoryService.delete_memory(memory_id, user_id="admin")
+    deleted = PersonalMemoryService.delete_memory(memory_id, user_id=current_user)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Memory item not found")
+        raise HTTPException(status_code=404, detail="Memory item not found or unauthorized")
     return {"status": "success", "deleted_id": memory_id}
 
 
 @v2_router.delete("/memory")
-async def purge_all_memory():
+async def purge_all_memory(current_user: str = Depends(get_current_user)):
     """Purge all personal research memories for the user."""
     from memory.personal_memory import PersonalMemoryService
-    count = PersonalMemoryService.purge_all_memories(user_id="admin")
+    count = PersonalMemoryService.purge_all_memories(user_id=current_user)
     return {"status": "success", "purged_count": count}
+
 
 
 # ── Privacy Firewall Audit Log ───────────────────────────────────────
