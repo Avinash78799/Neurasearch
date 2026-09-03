@@ -424,11 +424,19 @@ class AutonomousResearchAgent:
             {"citations_count": len(citations_list)}
         )
 
-        formatted_evidence = "\n---\n".join(evidence_packets)
+        from rag.context_compressor import ContextCompressor
+        compressed_packets = ContextCompressor.compress_chunks(
+            evidence_packets,
+            max_context_tokens=self.config.get("num_ctx", 5000),
+            query=objective
+        )
+
+        formatted_evidence = "\n---\n".join(compressed_packets)
         synthesis_prompt = SYNTHESIS_MONOGRAPH_PROMPT.format(
             objective=objective,
             evidence_text=formatted_evidence if formatted_evidence else "No external evidence found. Provide conceptual baseline."
         )
+
 
         # Boundary Check: Cloud LLM Leak Protection for Private & Hybrid Modes
         if has_private_documents and not is_local_llm:

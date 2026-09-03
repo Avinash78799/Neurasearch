@@ -30,6 +30,7 @@ class Database:
                         id TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         description TEXT,
+                        owner_user TEXT DEFAULT 'admin',
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     )
@@ -41,11 +42,12 @@ class Database:
                 cursor.execute("SELECT id FROM workspaces WHERE id = ?", (default_id,))
                 if not cursor.fetchone():
                     cursor.execute(
-                        """INSERT INTO workspaces (id, name, description, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?)""",
+                        """INSERT INTO workspaces (id, name, description, owner_user, created_at, updated_at)
+                        VALUES (?, ?, ?, 'admin', ?, ?)""",
                         (default_id, "Default Workspace", "Auto-seeded default workspace", now, now)
                     )
                     logger.info("Successfully seeded default workspace (id=%s) in SQLite.", default_id)
+
 
                 # 3. Conversations Table
                 cursor.execute("""
@@ -540,6 +542,13 @@ class Database:
                         f"ALTER TABLE {table} ADD COLUMN workspace_id TEXT DEFAULT '{default_id}' REFERENCES workspaces(id)"
                     )
             
+            # Check workspaces table for owner_user
+            cursor.execute("PRAGMA table_info(workspaces)")
+            ws_cols = [c[1] for c in cursor.fetchall()]
+            if "owner_user" not in ws_cols:
+                logger.info("Adding owner_user column to workspaces table...")
+                cursor.execute("ALTER TABLE workspaces ADD COLUMN owner_user TEXT DEFAULT 'admin'")
+
             # Retroactively require password rotation on default admin account
             try:
                 cursor.execute("UPDATE users SET must_rotate_password = 1 WHERE username = 'admin'")
@@ -547,6 +556,7 @@ class Database:
                 pass
 
             conn.commit()
+
 
 
 

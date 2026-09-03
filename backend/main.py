@@ -294,19 +294,25 @@ async def startup_event():
 @v1_router.get("/workspaces")
 async def list_workspaces_route(context: WorkspaceContext = Depends(get_workspace_context)):
     try:
-        return {"workspaces": WorkspaceService.list_workspaces()}
+        return {"workspaces": WorkspaceService.list_workspaces(username=context.username)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list workspaces: {e}")
 
 @v1_router.post("/workspaces")
 async def create_workspace_route(req: WorkspaceCreateRequest, context: WorkspaceContext = Depends(get_workspace_context)):
     try:
-        result = WorkspaceService.create_workspace(req.id, req.name, req.description)
+        result = WorkspaceService.create_workspace(
+            workspace_id=req.id,
+            name=req.name,
+            description=req.description,
+            owner_user=context.username or "admin"
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create workspace: {e}")
+
 
 
 @v1_router.post("/workspaces/export/{workspace_id}")

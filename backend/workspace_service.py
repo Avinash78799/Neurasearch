@@ -19,8 +19,8 @@ class WorkspaceService:
     """Encapsulates logical workspace management business logic."""
 
     @staticmethod
-    def create_workspace(workspace_id: str, name: str, description: str = None) -> dict:
-        """Create a new workspace in the SQLite database."""
+    def create_workspace(workspace_id: str, name: str, description: str = None, owner_user: str = "admin") -> dict:
+        """Create a new workspace in the SQLite database tied to the authenticated user."""
         from database import db
         if not workspace_id or not workspace_id.strip():
             raise WorkspaceError("Workspace ID cannot be empty.")
@@ -30,6 +30,7 @@ class WorkspaceService:
         workspace_id = workspace_id.strip().lower()
         name = name.strip()
         description = description.strip() if description else None
+        owner = owner_user or "admin"
         now = datetime.now().isoformat()
 
         with db.get_connection() as conn:
@@ -39,17 +40,18 @@ class WorkspaceService:
                 raise WorkspaceError(f"Workspace with ID '{workspace_id}' already exists.")
 
             conn.execute(
-                """INSERT INTO workspaces (id, name, description, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)""",
-                (workspace_id, name, description, now, now)
+                """INSERT INTO workspaces (id, name, description, owner_user, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (workspace_id, name, description, owner, now, now)
             )
             conn.commit()
 
-        logger.info("Workspace created", extra={"workspace": workspace_id, "workspace_name": name})
+        logger.info("Workspace created", extra={"workspace": workspace_id, "workspace_name": name, "owner": owner})
         return {
             "id": workspace_id,
             "name": name,
             "description": description,
+            "owner_user": owner,
             "created_at": now,
             "updated_at": now
         }
@@ -60,20 +62,31 @@ class WorkspaceService:
         from database import db
         with db.get_connection() as conn:
             row = conn.execute(
-                "SELECT id, name, description, created_at, updated_at FROM workspaces WHERE id = ?",
+                "SELECT id, name, description, owner_user, created_at, updated_at FROM workspaces WHERE id = ?",
                 (workspace_id,)
             ).fetchone()
             return dict(row) if row else None
 
     @staticmethod
-    def list_workspaces() -> list[dict]:
-        """List all workspaces in the database."""
+    def list_workspaces(username: str | None = None, is_admin: bool = False) -> list[dict]:
+        """List workspaces accessible to the user (owned workspaces + default shared workspace)."""
         from database import db
         with db.get_connection() as conn:
-            rows = conn.execute(
-                "SELECT id, name, description, created_at, updated_at FROM workspaces ORDER BY name ASC"
-            ).fetchall()
+            if is_admin or username is None or username == "admin":
+                rows = conn.execute(
+                    "SELECT id, name, description, owner_user, created_at, updated_at FROM workspaces ORDER BY name ASC"
+                ).fetchall()
+            else:
+                default_id = settings.default_workspace_id
+                rows = conn.execute(
+                    """SELECT id, name, description, owner_user, created_at, updated_at 
+                       FROM workspaces 
+                       WHERE owner_user = ? OR id = ? 
+                       ORDER BY name ASC""",
+                    (username, default_id)
+                ).fetchall()
             return [dict(r) for r in rows]
+
 
     @staticmethod
     def ensure_default_workspace() -> None:

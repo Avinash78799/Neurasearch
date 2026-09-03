@@ -119,16 +119,25 @@ def _extract_sources(packages: List[EvidencePackage]) -> List[str]:
 async def generator(state: CRAGState) -> dict:
     """Generate structured, evidence-backed research report from context with citations."""
     question = state["question"]
-    final_context = state.get("final_context", [])
+    raw_context = state.get("final_context", [])
     workspace_id = state.get("workspace_id", settings.default_workspace_id)
     messages = state.get("messages", [])
 
+    from rag.context_compressor import ContextCompressor
+    final_context = ContextCompressor.compress_chunks(
+        raw_context,
+        max_context_tokens=3200,
+        query=question
+    )
+
     logger.info(
-        "Generator — producing research synthesis from %d context chunks for: '%s' (workspace=%s)",
+        "Generator — producing research synthesis from %d context chunks (compressed from %d) for: '%s' (workspace=%s)",
         len(final_context),
+        len(raw_context),
         question,
         workspace_id
     )
+
 
     # Format chat history
     chat_history_str = ""
