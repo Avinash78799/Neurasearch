@@ -37,10 +37,10 @@ logger = logging.getLogger("neurasearch.api")
 
 app = FastAPI(title="NeuraSearch", version="2.1.0")
 
-# ── APIRouter for version v1 ─────────────────────────────────────────
+# APIRouter for version v1
 v1_router = APIRouter()
 
-# ── Rate Limiting ────────────────────────────────────────────────────
+# Rate Limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -69,7 +69,7 @@ def get_workspace_context(request: Request) -> WorkspaceContext:
     return WorkspaceContext(workspace_id=workspace_id, username=username)
 
 
-# ── Production Security Headers Middleware ───────────────────────────
+# Production Security Headers Middleware
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
@@ -100,7 +100,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Global Exception Handlers ────────────────────────────────────────
+# Global Exception Handlers
 from core.exceptions import (
     NeuraSearchError, WorkspaceError, RetrievalError, ResearchError,
     ComputationError, AuthenticationError, IngestionError, KnowledgeError, KnowledgeConflictError
@@ -762,7 +762,7 @@ async def delete_document(source: str, context: WorkspaceContext = Depends(get_w
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Document Insights Endpoints ─────────────────────────────────────
+# Document Insights Endpoints
 @v1_router.post("/insights/generate/{source}")
 async def trigger_insights_generation(source: str, background_tasks: BackgroundTasks, context: WorkspaceContext = Depends(get_workspace_context)):
     """Trigger insights generation manually for a document."""
@@ -799,7 +799,7 @@ async def compare_documents_endpoint(req: CompareRequest, context: WorkspaceCont
     return await compare_documents(req.source_a, text_a, req.source_b, text_b, req.topic)
 
 
-# ── Conversation History Endpoints ───────────────────────────────────
+# Conversation History Endpoints
 @v1_router.get("/conversations")
 async def get_conversations_endpoint(context: WorkspaceContext = Depends(get_workspace_context)):
     """List all conversations."""
@@ -836,8 +836,8 @@ async def delete_conversation_endpoint(conv_id: str, context: WorkspaceContext =
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Deep Research Endpoints ──────────────────────────────────────────
-# ── Deep Research Endpoints ──────────────────────────────────────────
+# Deep Research Endpoints
+# Deep Research Endpoints
 @v1_router.post("/research/blueprint")
 @limiter.limit(settings.rate_limit_research)
 async def create_research_blueprint_endpoint(request: Request, question_request: QueryRequest, context: WorkspaceContext = Depends(get_workspace_context)):
@@ -999,7 +999,7 @@ async def format_citations_endpoint(req: CitationExportRequest):
     return {"style": req.style or "apa", "formatted": formatted}
 
 
-# ── Knowledge Hub Endpoints ──────────────────────────────────────────
+# Knowledge Hub Endpoints
 
 from knowledge_service import KnowledgeService
 from models.knowledge import CreateKnowledgeItemRequest, UpdateKnowledgeItemRequest, KnowledgeType
@@ -1039,7 +1039,7 @@ async def toggle_knowledge_item_pin_endpoint(id: str, context: WorkspaceContext 
     return KnowledgeService.toggle_pin(id, context)
 
 
-# ── AI Note Generation Endpoints ─────────────────────────────────────
+# AI Note Generation Endpoints
 from ai_note_service import AINoteService
 from models.ai_notes import GenerateFromChatRequest, GenerateFromReportRequest, GenerateFromEvidenceRequest
 
@@ -1059,7 +1059,7 @@ async def generate_from_evidence_endpoint(req: GenerateFromEvidenceRequest):
     return await AINoteService.draft_from_evidence(req)
 
 
-# ── Knowledge Page Endpoints ─────────────────────────────────────────
+# Knowledge Page Endpoints
 from knowledge_page_service import KnowledgePageService
 from fastapi import Response
 
@@ -1131,7 +1131,7 @@ async def export_page_endpoint(page_id: str, format: str = "markdown", context: 
         )
 
 
-# ── Collection Endpoints ─────────────────────────────────────────────
+# Collection Endpoints
 from collection_service import CollectionService
 
 class CollectionItemRequest(BaseModel):
@@ -1166,7 +1166,7 @@ async def reorder_collection_items_endpoint(collection_id: str, req: CollectionR
     return {"status": "success", "message": "Reordering complete."}
 
 
-# ── Universal Search Endpoints ────────────────────────────────────────
+# Universal Search Endpoints
 from knowledge_search_service import KnowledgeSearchService
 from models.search import SearchRequest
 from models.reading import ReadingProgress, HighlightCreate, SaveNoteRequest, SavePageRequest, DocumentChatRequest
@@ -1193,7 +1193,7 @@ async def search_suggestions_endpoint(query: str = "", context: WorkspaceContext
     return {"suggestions": suggestions}
 
 
-# ── Reading Workspace Endpoints (Added in Module 6) ──────────────────
+# Reading Workspace Endpoints (Added in Module 6)
 @v1_router.get("/reading/session/{document}")
 async def get_reading_session_endpoint(document: str, context: WorkspaceContext = Depends(get_workspace_context)):
     """Load or create reading session context and reconstruct document pages."""
@@ -1305,7 +1305,7 @@ async def get_github_issues_endpoint(repo: str, token: Optional[str] = None, sta
         raise HTTPException(status_code=500, detail=f"Failed to fetch GitHub issues: {str(e)}")
 
 
-# ── Hardware Auto-Detection & Adaptive Profiles ─────────────────────
+# Hardware Auto-Detection & Adaptive Profiles
 class ApplyHardwareProfileRequest(BaseModel):
     profile_id: str
 
@@ -1335,7 +1335,7 @@ async def apply_hardware_profile_endpoint(req: ApplyHardwareProfileRequest):
         raise HTTPException(status_code=500, detail=f"Failed to apply profile: {str(e)}")
 
 
-# ── Settings & Usage Endpoints ───────────────────────────────────────
+# Settings & Usage Endpoints
 @v1_router.get("/settings")
 async def get_settings_endpoint():
     """Get active configuration parameters and model provider status."""
@@ -1668,7 +1668,7 @@ async def get_benchmark_results_endpoint():
     return latest_benchmark_results
 
 
-# ── Support, Diagnostics, and Maintenance Endpoints ──────────────────
+# Support, Diagnostics, and Maintenance Endpoints
 from support.support_service import SupportService
 
 class SupportTicketRequest(BaseModel):
@@ -1793,7 +1793,7 @@ async def health_check(context: WorkspaceContext = Depends(get_workspace_context
 
 
 # ════════════════════════════════════════════════════════════════════════
-# ── NEURASEARCH v2.0 API ROUTER (DEEP RESEARCH & PRIVACY FIREWALL) ─────
+# NEURASEARCH v2.0 API ROUTER (DEEP RESEARCH & PRIVACY FIREWALL)
 # ════════════════════════════════════════════════════════════════════════
 
 v2_router = APIRouter()
@@ -1940,7 +1940,7 @@ async def update_living_research(
     return result
 
 
-# ── Personal Research Memory Endpoints ───────────────────────────────
+# Personal Research Memory Endpoints
 
 @v2_router.get("/memory")
 async def get_user_memory(current_user: str = Depends(get_current_user)):
@@ -1982,7 +1982,7 @@ async def purge_all_memory(current_user: str = Depends(get_current_user)):
 
 
 
-# ── Privacy Firewall Audit Log ───────────────────────────────────────
+# Privacy Firewall Audit Log
 
 @v2_router.get("/privacy/audit-log")
 async def get_privacy_audit_log(limit: int = 50):
@@ -1996,4 +1996,4 @@ app.include_router(v2_router, prefix="/api/v2")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.app_port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.app_port, reload=True)

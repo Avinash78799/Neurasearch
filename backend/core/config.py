@@ -12,13 +12,13 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # ── AI Model Provider Settings ─────────────────────────────────
+    # AI Model Provider Settings
     llm_provider: str = Field(
         default="ollama",
         description="Active LLM provider: 'ollama', 'groq', 'openai', 'deepseek', 'openrouter'"
     )
 
-    # ── Ollama (Local) ─────────────────────────────────────────────
+    # Ollama (Local)
     ollama_base_url: str = Field(
         default="http://127.0.0.1:11434",
         description="Ollama server URL"
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
         description="Groq LLM model name"
     )
 
-    # ── OpenAI & OpenRouter & DeepSeek ─────────────────────────────
+    # OpenAI & OpenRouter & DeepSeek
     openai_api_key: Optional[str] = Field(
         default=None,
         description="OpenAI or OpenRouter API key"
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
         description="DeepSeek model name"
     )
 
-    # ── ChromaDB ───────────────────────────────────────────────────
+    # ChromaDB
     chroma_path: str = Field(
         default="./chroma_db",
         description="Path to ChromaDB persistent storage"
@@ -70,25 +70,25 @@ class Settings(BaseSettings):
         description="ChromaDB collection name"
     )
 
-    # ── BM25 ───────────────────────────────────────────────────────
+    # BM25
     bm25_index_path: str = Field(
         default="./bm25_index.pkl",
         description="Path to persist BM25 index as pickle"
     )
 
-    # ── SQLite ─────────────────────────────────────────────────────
+    # SQLite
     sqlite_db_path: str = Field(
         default="./neurasearch.db",
         description="Path to local SQLite database"
     )
 
-    # ── Tavily ─────────────────────────────────────────────────────
+    # Tavily
     tavily_api_key: Optional[str] = Field(
         default=None,
         description="Tavily API key for web search fallback (optional)"
     )
 
-    # ── App Settings ───────────────────────────────────────────────
+    # App Settings
     app_port: int = Field(default=8000, description="FastAPI server port")
     max_hallucination_retries: int = Field(
         default=2,
@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=1000, description="Chunk size in characters")
     chunk_overlap: int = Field(default=200, description="Chunk overlap in characters")
 
-    # ── NeuraSearch v2 Advanced Config ─────────────────────────────
+    # NeuraSearch v2 Advanced Config
     enable_hallucination_check: bool = Field(
         default=True,
         description="Whether to run the hallucination grading stage"
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
         description="Whether to use sentence-level semantic chunker"
     )
     
-    # ── Workspace & Edition Config (Added in v2.1) ──────────────────
+    # Workspace & Edition Config (Added in v2.1)
     default_workspace_id: str = Field(
         default="default",
         description="Default workspace ID used for legacy data and initialization"
@@ -149,7 +149,7 @@ class Settings(BaseSettings):
         description="Maximum concurrent sub-queries executed in parallel in deep research"
     )
 
-    # ── Rate Limiting ──────────────────────────────────────────────
+    # Rate Limiting
     rate_limit_default: str = Field(
         default="60/minute",
         description="Default rate limit per IP address"
@@ -160,13 +160,13 @@ class Settings(BaseSettings):
     )
 
 
-    # ── Auth & Security ────────────────────────────────────────────
+    # Auth & Security
     jwt_secret: Optional[str] = Field(
         default=None,
         description="Secret key for JWT token signing"
     )
 
-    # ── CORS ───────────────────────────────────────────────────────
+    # CORS
     frontend_url: str = Field(
         default="http://localhost:5173",
         description="Frontend URL for CORS"

@@ -321,7 +321,7 @@ class Database:
                     )
                 """)
 
-                # ── NeuraSearch v2.0 Master Architecture Tables ──────────────
+                # NeuraSearch v2.0 Master Architecture Tables
                 # 21. V2 Research Sessions (Tripartite Modes & State Machine)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS research_sessions_v2 (
@@ -472,10 +472,10 @@ class Database:
 
 
 
-            # ── Idempotent Alter Migrations ──────────────────────────────
+            # Idempotent Alter Migrations
             self._run_alter_migrations()
 
-            # ── Add SQLite Indexes for Workspace Queries ──────────────────
+            # Add SQLite Indexes for Workspace Queries
             self._create_workspace_indexes()
 
             logger.info("Database initialised successfully at %s", self.db_path)
@@ -601,7 +601,7 @@ class Database:
             return WorkspaceContext(context)
         return context
 
-    # ── Conversations API ─────────────────────────────────────────────
+    # Conversations API
     def create_conversation(self, conv_id: str, title: str, context: WorkspaceContext | str | None = None):
         ctx = self._resolve_context(context)
         now = datetime.now().isoformat()
@@ -660,7 +660,7 @@ class Database:
             conn.execute("DELETE FROM messages WHERE conversation_id = ? AND workspace_id = ?", (conv_id, ctx.workspace_id))
             conn.execute("DELETE FROM conversations WHERE id = ? AND workspace_id = ?", (conv_id, ctx.workspace_id))
 
-    # ── Document Insights API ─────────────────────────────────────────
+    # Document Insights API
     def save_insights(self, doc_id: str, source: str, summary: str, topics: list, entities: list, word_count: int, chunk_count: int, reading_time: int, context: WorkspaceContext | str | None = None):
         ctx = self._resolve_context(context)
         now = datetime.now().isoformat()
@@ -691,7 +691,7 @@ class Database:
         with self.get_connection() as conn:
             conn.execute("DELETE FROM document_insights WHERE source = ? AND workspace_id = ?", (source, ctx.workspace_id))
 
-    # ── Research Reports API ──────────────────────────────────────────
+    # Research Reports API
     def save_research_report(self, report_id: str, question: str, sub_queries: list, findings: list, report_content: str, citations: list, context: WorkspaceContext | str | None = None):
         ctx = self._resolve_context(context)
         now = datetime.now().isoformat()
@@ -772,8 +772,8 @@ class Database:
 
 
 
-    # ── Embeddings Cache API ──────────────────────────────────────────
-    # ── Telemetry API ────────────────────────────────
+    # Embeddings Cache API
+    # Telemetry API
     def save_telemetry_event(self, event_id: str, type: str, workspace_id: str, session_id: str, duration_ms: int, metadata: dict):
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
@@ -802,7 +802,7 @@ class Database:
                 results.append(item)
             return results
 
-    # ── Research Sessions API ────────────────────────
+    # Research Sessions API
     def save_research_session(self, session_id: str, workspace_id: str, status: str, original_question: str, blueprint: list, thread_id: str = None):
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
@@ -877,7 +877,7 @@ class Database:
         except Exception as exc:
             logger.error("Failed to save embeddings to cache: %s", exc)
 
-    # ── Knowledge Hub API ─────────────────────────────────────────────
+    # Knowledge Hub API
     def save_knowledge_item(self, item_id: str, title: str, content: str, summary: str | None,
                             item_type: str, status: str, version: int, is_pinned: int,
                             color: str | None, icon: str | None, created_from: str,
@@ -1094,7 +1094,7 @@ class Database:
                 "last_execution_timestamp": last_exec
             }
 
-    # ── Reading Sessions Helpers ──────────────────
+    # Reading Sessions Helpers
     def get_reading_session(self, workspace_id: str, document_id: str) -> dict | None:
         with self.get_connection() as conn:
             row = conn.execute(
@@ -1118,7 +1118,7 @@ class Database:
             )
             conn.commit()
 
-    # ── Highlights Helpers ────────────────────────
+    # Highlights Helpers
     def create_highlight(self, id: str, workspace_id: str, document_id: str, page_number: int, highlight_text: str, coordinates_json: str | None = None) -> None:
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
@@ -1146,7 +1146,7 @@ class Database:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    # ── Document Page Index Helpers ───────────────
+    # Document Page Index Helpers
     def get_cached_page_index(self, workspace_id: str, document_id: str) -> list:
         with self.get_connection() as conn:
             rows = conn.execute(
@@ -1168,7 +1168,7 @@ class Database:
             )
             conn.commit()
 
-    # ── Reading Telemetry Helpers ─────────────────
+    # Reading Telemetry Helpers
     def save_reading_telemetry(self, id: str, workspace_id: str, document_id: str, session_duration_ms: int, pages_read: int, highlight_count: int, ai_questions: int) -> None:
         now = datetime.now().isoformat()
         with self.get_connection() as conn:
@@ -1190,7 +1190,7 @@ class Database:
                 "total_highlights": total_highlights
             }
 
-    # ── V2 Master Research Session & Claim Graph Helpers ─────────
+    # V2 Master Research Session & Claim Graph Helpers
 
     def create_research_session_v2(
         self,
@@ -1370,7 +1370,7 @@ class Database:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    # ── V2 Privacy Firewall & Permission Grants ──────────────────
+    # V2 Privacy Firewall & Permission Grants
     def create_permission_grant_v2(
         self,
         grant_id: str,
@@ -1413,7 +1413,7 @@ class Database:
             conn.commit()
             return cursor.rowcount > 0
 
-    # ── V2 Personal Research Memory ──────────────────────────────
+    # V2 Personal Research Memory
     def save_private_memory_v2(
         self,
         memory_id: str,
@@ -1454,7 +1454,7 @@ class Database:
             conn.commit()
             return cursor.rowcount
 
-    # ── V2 Privacy Audit Event Logging ───────────────────────────
+    # V2 Privacy Audit Event Logging
     def log_privacy_event_v2(
         self,
         event_id: str,

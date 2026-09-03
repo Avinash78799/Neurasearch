@@ -1,17 +1,17 @@
-# ── Dependencies & Virtual Environments ─────────────────────────
+# Dependencies & Virtual Environments
 backend/.venv/
 .venv/
 venv/
 node_modules/
 frontend/node_modules/
 
-# ── Build Outputs & Distribution ─────────────────────────────────
+# Build Outputs & Distribution
 dist/
 frontend/dist/
 *.egg-info/
 .build/
 
-# ── Environment & Secrets ───────────────────────────────────────
+# Environment & Secrets
 .env
 .env.local
 .env.development.local
@@ -20,8 +20,7 @@ frontend/dist/
 .jwt_secret
 backend/.jwt_secret
 
-
-# ── Databases, Vector Stores & Indices ───────────────────────────
+# Databases, Vector Stores & Indices
 *.db
 *.db-shm
 *.db-wal
@@ -35,14 +34,14 @@ test_chroma_backup/
 backend/*.pkl
 bm25_*.pkl
 
-# ── Backups, Transfers & Temporary Artifacts ─────────────────────
+# Backups, Transfers & Temporary Artifacts
 backups/
 test_transfer.json
 *.tar.gz
 scratch/
 *.log
 
-# ── Python Cache & Testing ───────────────────────────────────────
+# Python Cache & Testing
 __pycache__/
 backend/**/__pycache__/
 tests/**/__pycache__/
@@ -52,7 +51,7 @@ tests/**/__pycache__/
 .coverage
 htmlcov/
 
-# ── OS & IDE Files ───────────────────────────────────────────────
+# OS & IDE Files
 .DS_Store
 Thumbs.db
 .vscode/

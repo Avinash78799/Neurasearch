@@ -18,7 +18,7 @@ from workspace_service import WorkspaceContext
 
 logger = logging.getLogger(__name__)
 
-# ── Module-level client initialization ────────────────────────────────
+# Module-level client initialization
 _client = chromadb.PersistentClient(path=settings.chroma_path)
 _collection = _client.get_or_create_collection(name=settings.chroma_collection)
 
@@ -45,7 +45,7 @@ def _resolve_context(context: WorkspaceContext | str | None) -> WorkspaceContext
     return context
 
 
-# ── Public RAG helpers ────────────────────────────────────────────────
+# Public RAG helpers
 
 
 def add_documents(docs: list[Document], context: WorkspaceContext | str | None = None) -> None:

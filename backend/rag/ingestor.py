@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _TEXT_EXTENSIONS: set[str] = {".txt", ".md", ".csv", ".json", ".log", ".rst"}
 
 
-# ── PDF ingestion ─────────────────────────────────────────────────────
+# PDF ingestion
 
 
 def ingest_pdf(file_path: str, filename: str) -> list[Document]:
@@ -74,7 +74,7 @@ def ingest_pdf(file_path: str, filename: str) -> list[Document]:
     return all_chunks
 
 
-# ── Plain-text ingestion ──────────────────────────────────────────────
+# Plain-text ingestion
 
 
 def ingest_txt(file_path: str, filename: str) -> list[Document]:
@@ -176,7 +176,7 @@ def ingest_pptx(file_path: str, filename: str) -> list[Document]:
     return all_chunks
 
 
-# ── Orchestrator ──────────────────────────────────────────────────────
+# Orchestrator
 
 
 def ingest_file(file_path: str, filename: str, context: WorkspaceContext | str | None = None) -> dict[str, Any]:
@@ -235,7 +235,7 @@ def ingest_file(file_path: str, filename: str, context: WorkspaceContext | str |
         }
 
 
-# ── Bytes-based ingestion (API uploads) ──────────────────────────────
+# Bytes-based ingestion (API uploads)
 
 
 def ingest_bytes(content: bytes, filename: str, context: WorkspaceContext | str | None = None) -> dict[str, Any]:
