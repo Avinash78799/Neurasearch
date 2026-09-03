@@ -106,6 +106,7 @@ class Database:
                         username TEXT PRIMARY KEY,
                         password_hash TEXT NOT NULL,
                         role TEXT NOT NULL DEFAULT 'user',
+                        must_rotate_password INTEGER NOT NULL DEFAULT 1,
                         created_at TEXT NOT NULL
                     )
                 """)
@@ -114,6 +115,11 @@ class Database:
                     cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
                 except Exception:
                     pass
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN must_rotate_password INTEGER NOT NULL DEFAULT 1")
+                except Exception:
+                    pass
+
 
 
                 # 8. Embedding Cache Table
@@ -534,7 +540,15 @@ class Database:
                         f"ALTER TABLE {table} ADD COLUMN workspace_id TEXT DEFAULT '{default_id}' REFERENCES workspaces(id)"
                     )
             
+            # Retroactively require password rotation on default admin account
+            try:
+                cursor.execute("UPDATE users SET must_rotate_password = 1 WHERE username = 'admin'")
+            except Exception:
+                pass
+
             conn.commit()
+
+
 
     def _create_workspace_indexes(self):
         """Create indices on workspace_id columns to optimize workspace queries."""
@@ -722,10 +736,20 @@ class Database:
     def get_user(self, username: str):
         with self.get_connection() as conn:
             row = conn.execute(
-                "SELECT username, password_hash, role, created_at FROM users WHERE username = ?",
+                "SELECT username, password_hash, role, must_rotate_password, created_at FROM users WHERE username = ?",
                 (username,)
             ).fetchone()
             return dict(row) if row else None
+
+    def update_user_password(self, username: str, new_password_hash: str) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET password_hash = ?, must_rotate_password = 0 WHERE username = ?",
+                (new_password_hash, username)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
 
 
     # ── Embeddings Cache API ──────────────────────────────────────────

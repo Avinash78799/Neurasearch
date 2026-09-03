@@ -17,6 +17,9 @@ frontend/dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.jwt_secret
+backend/.jwt_secret
+
 
 # ── Databases, Vector Stores & Indices ───────────────────────────
 *.db

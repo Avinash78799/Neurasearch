@@ -5,6 +5,7 @@ Transforms private context, confidential details, and PII into generalized, non-
 
 import re
 import logging
+import math
 from typing import Tuple, List, Dict, Any
 
 logger = logging.getLogger("neurasearch.privacy.sanitizer")
@@ -14,8 +15,20 @@ EMAIL_PATTERN = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 PHONE_PATTERN = r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
 IP_PATTERN = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
 FINANCIAL_PATTERN = r"[\$€£¥]\s*\d+(?:[.,]\d+)*(?:\s*(?:million|billion|k|M|B))?"
-INTERNAL_CODE_PATTERN = r"\b(?:API_[A-Z0-9_]+|SECRET_[A-Z0-9_]+|PRIVATE_[A-Z0-9_]+|KEY-[A-Z0-9]+|CONFIDENTIAL-[A-Z0-9]+)\b"
 
+# Substring keyword matching: match keywords anywhere inside a token
+INTERNAL_CODE_PATTERN = r"(?i)\b[A-Z0-9_-]*(?:SECRET|API|PRIVATE|KEY|TOKEN|CONFIDENTIAL|INTERNAL|CREDENTIAL|PASSWORD)[A-Z0-9_-]*\b"
+
+# High-entropy token pattern (hex/base64/uuid/alphanumeric tokens 20+ chars)
+LONG_TOKEN_PATTERN = r"\b[A-Za-z0-9_-]{20,}\b"
+
+
+def _shannon_entropy(token: str) -> float:
+    """Calculate Shannon entropy for a given token string."""
+    if not token:
+        return 0.0
+    prob = [token.count(c) / len(token) for c in set(token)]
+    return -sum(p * math.log2(p) for p in prob)
 
 
 def sanitize_and_generalize_query(raw_query: str, private_context: str = "") -> Tuple[str, List[str], Dict[str, Any]]:
@@ -40,7 +53,17 @@ def sanitize_and_generalize_query(raw_query: str, private_context: str = "") -> 
             redacted_items.extend(matches)
             sanitized = re.sub(pat, label, sanitized)
 
-    # 2. Generalization rules for company-specific confidential phrasing
+    # 2. Redact high-entropy / long arbitrary secret tokens (20+ chars or entropy > 3.2)
+    potential_tokens = re.findall(r"\b[A-Za-z0-9_-]{16,}\b", sanitized)
+    for tok in potential_tokens:
+        if tok.startswith("REDACTED_") or tok.startswith("[REDACTED_"):
+            continue
+        if len(tok) >= 20 or _shannon_entropy(tok) >= 3.2:
+            redacted_items.append(tok)
+            sanitized = re.sub(r"\b" + re.escape(tok) + r"\b", "[REDACTED_SECRET]", sanitized)
+
+
+    # 3. Generalization rules for company-specific confidential phrasing
     confidential_phrases = [
         r"(?i)\bour\s+company's\s+secret\b",
         r"(?i)\bour\s+internal\s+strategy\b",
@@ -61,3 +84,4 @@ def sanitize_and_generalize_query(raw_query: str, private_context: str = "") -> 
     }
 
     return sanitized.strip(), redacted_items, audit_metadata
+

@@ -15,11 +15,14 @@ from providers.base import LLMProvider, SearchProvider, WebFetcher, SearchResult
 from providers.llm_provider import get_active_llm_provider
 from providers.search_provider import get_active_search_provider
 from providers.fetcher import SecureWebFetcher
-from privacy.gateway import PrivacyGateway
+from privacy.gateway import PrivacyGateway, PrivacyFirewallViolation
 from research.state_machine import ResearchState, ResearchEventStream
+
 from database import db
 from workspace_service import WorkspaceContext
 from core.exceptions import ResearchError
+from config import settings
+
 
 logger = logging.getLogger("neurasearch.research.agent")
 
@@ -133,7 +136,13 @@ class AutonomousResearchAgent:
         """
         session_id = session_id or str(uuid.uuid4())
         
-        # 1. Initialize Session
+        # 1. Initialize Session & Air-gap validation
+        is_local_llm = getattr(self.llm, "is_local", False)
+        if self.mode == "private" and not is_local_llm:
+            err_msg = f"Private Mode is strictly air-gapped. Sending requests to cloud LLM provider '{getattr(self.llm, 'provider_name', 'cloud')}' is blocked. Please switch to a local Ollama model or change research mode."
+            logger.error(err_msg)
+            raise PrivacyFirewallViolation(err_msg)
+
         session = db.create_research_session_v2(
             session_id=session_id,
             workspace_id=self.workspace_id,
@@ -178,7 +187,7 @@ class AutonomousResearchAgent:
 
         title = plan_data.get("title", f"Research: {objective}")
         sub_queries = plan_data.get("sub_queries", [])[:self.config["max_queries"]]
-        db.update_research_session_v2(session_id, plan_json=json.dumps(plan_data))
+        db.update_research_session_v2(session_id, plan_json=json.dumps(plan_data), status=ResearchState.SEARCHING.value)
 
         yield ResearchEventStream.format_event(
             ResearchState.SEARCHING, 
@@ -189,11 +198,11 @@ class AutonomousResearchAgent:
         # 3. Discovery & Search Loop
         all_sources: List[Dict[str, Any]] = []
         source_urls_seen = set()
+        has_private_documents = False
 
         # Step 3a: Private Retrieval (Always run for workspace knowledge)
         try:
             from rag.vectorstore import similarity_search_by_vector
-            from rag.bm25_index import search as bm25_search
             ctx = WorkspaceContext(workspace_id=self.workspace_id)
             
             # Vector search
@@ -205,6 +214,7 @@ class AutonomousResearchAgent:
             for p_doc in p_docs:
                 src_id = str(uuid.uuid4())
                 src_url = p_doc.metadata.get("source", "Private Document")
+                has_private_documents = True
                 db.add_research_source_v2(
                     source_id=src_id,
                     session_id=session_id,
@@ -229,67 +239,77 @@ class AutonomousResearchAgent:
         except Exception as exc:
             logger.info("Private search skipped or empty: %s", exc)
 
-        # Step 3b: Online Search (Subject to Privacy Gateway)
+        # Step 3b: Online Search (Subject to Privacy Gateway and Concurrency Limits)
         if self.mode in ("online", "hybrid"):
-            for sq in sub_queries:
-                q_text = sq.get("query", "")
-                eval_res = PrivacyGateway.evaluate_outbound_request(
-                    mode=self.mode,
-                    raw_query=q_text,
-                    destination="Search Engine (Tavily/Brave)",
-                    session_id=session_id
-                )
+            sem = asyncio.Semaphore(settings.max_concurrent_subqueries)
 
-                if eval_res["action"] == "BLOCK":
-                    yield ResearchEventStream.format_event(
-                        ResearchState.SEARCHING,
-                        "External search blocked by Private Mode air-gap.",
-                        {"query": q_text}
+            async def _execute_subquery(sq: Dict[str, Any]) -> List[SearchResult]:
+                async with sem:
+                    q_text = sq.get("query", "")
+                    eval_res = PrivacyGateway.evaluate_outbound_request(
+                        mode=self.mode,
+                        raw_query=q_text,
+                        destination="Search Engine (Tavily/Brave)",
+                        session_id=session_id,
+                        contains_private_context=has_private_documents
                     )
-                    continue
 
-                if eval_res["action"] == "REQUIRE_CONSENT":
-                    yield ResearchEventStream.format_event(
-                        ResearchState.AWAITING_PERMISSION,
-                        "Outbound search requires explicit user authorization.",
-                        {
-                            "grant_id": eval_res["grant_id"],
-                            "proposed_query": eval_res["sanitized_query"],
-                            "destination": "Public Web Search"
-                        },
-                        event_type="consent_required"
-                    )
-                    # For streaming without blocking the generator, we proceed with sanitized query
-                    sanitized_q = eval_res["sanitized_query"]
-                else:
-                    sanitized_q = eval_res["sanitized_query"]
+                    if eval_res["action"] == "BLOCK":
+                        return []
 
-                search_res = await self.search_provider.search(sanitized_q, num_results=3)
-                for res in search_res:
-                    if res.url not in source_urls_seen:
-                        source_urls_seen.add(res.url)
-                        src_id = str(uuid.uuid4())
-                        db.add_research_source_v2(
-                            source_id=src_id,
-                            session_id=session_id,
-                            workspace_id=self.workspace_id,
-                            origin="online",
-                            url=res.url,
-                            title=res.title,
-                            publisher=res.publisher,
-                            source_type=res.source_type,
-                            trust_score=res.score,
-                            raw_snippet=res.snippet
-                        )
-                        all_sources.append({
-                            "id": src_id,
-                            "url": res.url,
-                            "title": res.title,
-                            "origin": "online",
-                            "publisher": res.publisher,
-                            "snippet": res.snippet,
-                            "trust_score": res.score
-                        })
+                    if eval_res["action"] == "REQUIRE_CONSENT":
+                        grant_id = eval_res["grant_id"]
+                        # Wait for consent approval
+                        is_approved = False
+                        for _ in range(60):
+                            if PrivacyGateway.verify_permission_grant(grant_id):
+                                is_approved = True
+                                break
+                            await asyncio.sleep(0.5)
+
+                        if not is_approved:
+                            return []
+
+                        grant_obj = db.get_permission_grant_v2(grant_id)
+                        sanitized_q = (grant_obj.get("proposed_query") if grant_obj else None) or eval_res["sanitized_query"]
+                    else:
+                        sanitized_q = eval_res["sanitized_query"]
+
+                    return await self.search_provider.search(sanitized_q, num_results=3)
+
+            search_tasks = [_execute_subquery(sq) for sq in sub_queries]
+            gathered_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+
+            for res_list in gathered_results:
+                if isinstance(res_list, list):
+                    for res in res_list:
+                        if res.url not in source_urls_seen:
+                            source_urls_seen.add(res.url)
+                            src_id = str(uuid.uuid4())
+                            db.add_research_source_v2(
+                                source_id=src_id,
+                                session_id=session_id,
+                                workspace_id=self.workspace_id,
+                                origin="online",
+                                url=res.url,
+                                title=res.title,
+                                publisher=res.publisher,
+                                source_type=res.source_type,
+                                trust_score=res.score,
+                                raw_snippet=res.snippet
+                            )
+                            all_sources.append({
+                                "id": src_id,
+                                "url": res.url,
+                                "title": res.title,
+                                "origin": "online",
+                                "publisher": res.publisher,
+                                "snippet": res.snippet,
+                                "trust_score": res.score
+                            })
+
+        db.update_research_session_v2(session_id, status=ResearchState.FETCHING.value)
+
 
         yield ResearchEventStream.format_event(
             ResearchState.FETCHING,
@@ -360,7 +380,44 @@ class AutonomousResearchAgent:
                 "origin": src["origin"]
             })
 
+        # 4.5 Active Gap-Iteration Loop (when gap_iterations > 0)
+        gap_iters = self.config.get("gap_iterations", 0)
+        if gap_iters > 0 and self.mode in ("online", "hybrid") and len(evidence_packets) > 0:
+            yield ResearchEventStream.format_event(
+                ResearchState.SEARCHING,
+                f"Evaluating evidence coverage and executing {gap_iters} gap-targeted iteration(s)...",
+                {"gap_iterations": gap_iters}
+            )
+            gap_query = f"{objective} key limitations and conflicting evidence"
+            gap_eval = PrivacyGateway.evaluate_outbound_request(
+                mode=self.mode,
+                raw_query=gap_query,
+                destination="Search Engine (Gap-Resolution)",
+                session_id=session_id,
+                contains_private_context=has_private_documents
+            )
+            if gap_eval["action"] == "ALLOW":
+                gap_results = await self.search_provider.search(gap_eval["sanitized_query"], num_results=2)
+                for res in gap_results:
+                    if res.url not in source_urls_seen:
+                        source_urls_seen.add(res.url)
+                        g_idx = len(citations_list) + 1
+                        evidence_packets.append(
+                            f"[^{g_idx}] Source: {res.title} ({res.publisher}) [GAP_RESOLVED]\n"
+                            f"URL: {res.url}\n"
+                            f"Content: {res.snippet}\n"
+                        )
+                        citations_list.append({
+                            "index": g_idx,
+                            "anchor": f"[^{g_idx}]",
+                            "source_title": res.title,
+                            "url": res.url,
+                            "publisher": res.publisher,
+                            "origin": "online"
+                        })
+
         # 5. Synthesis & Verification
+        db.update_research_session_v2(session_id, status=ResearchState.SYNTHESIZING.value)
         yield ResearchEventStream.format_event(
             ResearchState.SYNTHESIZING,
             "Synthesizing structured monograph with verified citations and contradiction analysis...",
@@ -372,6 +429,35 @@ class AutonomousResearchAgent:
             objective=objective,
             evidence_text=formatted_evidence if formatted_evidence else "No external evidence found. Provide conceptual baseline."
         )
+
+        # Boundary Check: Cloud LLM Leak Protection for Private & Hybrid Modes
+        if has_private_documents and not is_local_llm:
+            if self.mode == "private":
+                raise PrivacyFirewallViolation("Private Mode is strictly air-gapped. Sending private document context to cloud LLM is blocked.")
+            elif self.mode == "hybrid":
+                llm_eval = PrivacyGateway.evaluate_outbound_request(
+                    mode="hybrid",
+                    raw_query="Synthesis monograph prompt with private evidence context",
+                    destination=f"Cloud LLM ({getattr(self.llm, 'provider_name', 'cloud')})",
+                    session_id=session_id,
+                    contains_private_context=True
+                )
+                if llm_eval["action"] == "REQUIRE_CONSENT":
+                    grant_id = llm_eval["grant_id"]
+                    yield ResearchEventStream.format_event(
+                        ResearchState.AWAITING_PERMISSION,
+                        "Cloud LLM synthesis with private document context requires authorization.",
+                        {"grant_id": grant_id, "destination": getattr(self.llm, "provider_name", "cloud")},
+                        event_type="consent_required"
+                    )
+                    approved = False
+                    for _ in range(60):
+                        if PrivacyGateway.verify_permission_grant(grant_id):
+                            approved = True
+                            break
+                        await asyncio.sleep(0.5)
+                    if not approved:
+                        raise PrivacyFirewallViolation("Cloud LLM synthesis with private context was rejected or timed out.")
 
         final_response = await self.llm.generate(prompt=synthesis_prompt, temperature=0.15)
         monograph_markdown = final_response.content.strip()
@@ -400,3 +486,4 @@ class AutonomousResearchAgent:
                 "total_sources": len(all_sources)
             }
         )
+

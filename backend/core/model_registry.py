@@ -12,8 +12,78 @@ from config import settings
 
 logger = logging.getLogger("neurasearch.core.model_registry")
 
+import hashlib
+import numpy as np
+from typing import Optional, List
+from langchain_core.embeddings import Embeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_community.chat_models import ChatOpenAI
+from config import settings
+from database import db
+
+logger = logging.getLogger("neurasearch.core.model_registry")
+
 _llm = None
 _embeddings = None
+
+
+class CachedEmbeddingsWrapper(Embeddings):
+    """Transparent SQLite-caching wrapper around any Embeddings provider."""
+
+    def __init__(self, underlying_embedder: Embeddings, model_name: str):
+        self.underlying = underlying_embedder
+        self.model_name = model_name
+
+    def _hash_text(self, text: str) -> str:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+        
+        hashes = [self._hash_text(t) for t in texts]
+        cached = db.get_embeddings_by_hashes(hashes, self.model_name)
+        
+        missing_indices = []
+        missing_texts = []
+        final_embeddings: List[Optional[List[float]]] = [None] * len(texts)
+
+        for idx, (t, h) in enumerate(zip(texts, hashes)):
+            if h in cached:
+                final_embeddings[idx] = cached[h]
+            else:
+                missing_indices.append(idx)
+                missing_texts.append(t)
+
+        if missing_texts:
+            fresh_embeddings = self.underlying.embed_documents(missing_texts)
+            items_to_save = []
+            for m_idx, emb in zip(missing_indices, fresh_embeddings):
+                final_embeddings[m_idx] = emb
+                h = hashes[m_idx]
+                items_to_save.append({
+                    "text_hash": h,
+                    "model": self.model_name,
+                    "dim": len(emb),
+                    "vector": np.array(emb, dtype=np.float32).tobytes()
+                })
+            try:
+                db.save_embeddings_batch(items_to_save)
+            except Exception as e:
+                logger.warning("Failed to persist embeddings batch: %s", e)
+
+        return [e for e in final_embeddings if e is not None]
+
+    async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
+        import asyncio
+        return await asyncio.to_thread(self.embed_documents, texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return self.embed_documents([text])[0]
+
+    async def aembed_query(self, text: str) -> List[float]:
+        results = await self.aembed_documents([text])
+        return results[0]
 
 
 def get_llm(provider: Optional[str] = None):
@@ -77,14 +147,16 @@ def get_llm(provider: Optional[str] = None):
     return _llm
 
 
-def get_embeddings() -> OllamaEmbeddings:
-    """Retrieve or initialize the global OllamaEmbeddings instance (lazy singleton)."""
+def get_embeddings() -> Embeddings:
+    """Retrieve or initialize the global SQLite-cached OllamaEmbeddings instance (lazy singleton)."""
     global _embeddings
     if _embeddings is None:
         logger.info("Initializing global OllamaEmbeddings instance (model=%s, url=%s)", 
                     settings.ollama_embed_model, settings.ollama_base_url)
-        _embeddings = OllamaEmbeddings(
+        base_embedder = OllamaEmbeddings(
             model=settings.ollama_embed_model,
             base_url=settings.ollama_base_url,
         )
+        _embeddings = CachedEmbeddingsWrapper(base_embedder, model_name=settings.ollama_embed_model)
     return _embeddings
+

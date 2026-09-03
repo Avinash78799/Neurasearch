@@ -79,3 +79,42 @@ class CitationService:
             "page_number": 1,
             "text": f"Document reference: {citation_str}"
         }
+
+    @staticmethod
+    def format_citation(source: Dict[str, Any], style: str = "apa") -> str:
+        """Format a single source metadata dict into APA, MLA, or BibTeX."""
+        title = source.get("title") or source.get("url", "Untitled Document")
+        publisher = source.get("publisher") or source.get("author") or "NeuraSearch Workspace"
+        url = source.get("url") or ""
+        year = source.get("published_date", "")[:4] if source.get("published_date") else "n.d."
+        style = (style or "apa").lower()
+
+        if style == "apa":
+            # APA 7th edition
+            return f"{publisher}. ({year}). *{title}*. {url}".strip()
+        elif style == "mla":
+            # MLA 9th edition
+            return f"{publisher}. \"{title}.\" *Web Resource*, {url}.".strip()
+        elif style == "bibtex":
+            # Clean key
+            clean_key = "".join(c for c in title.split()[0] if c.isalnum()).lower() if title else "source"
+            src_id = source.get("id", "ref")[:8]
+            cite_key = f"{clean_key}_{src_id}"
+            return (
+                f"@misc{{{cite_key},\n"
+                f"  title = {{{title}}},\n"
+                f"  author = {{{publisher}}},\n"
+                f"  year = {{{year}}},\n"
+                f"  url = {{{url}}}\n"
+                f"}}"
+            )
+        return f"[{publisher}] {title} - {url}"
+
+    @staticmethod
+    def format_bibliography(sources: list[Dict[str, Any]], style: str = "apa") -> str:
+        """Format multiple source entries into a structured bibliography document."""
+        formatted_entries = [CitationService.format_citation(s, style=style) for s in sources]
+        if style == "bibtex":
+            return "\n\n".join(formatted_entries)
+        return "\n".join(f"{i+1}. {entry}" for i, entry in enumerate(formatted_entries))
+

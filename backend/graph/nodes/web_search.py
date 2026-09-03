@@ -28,6 +28,26 @@ async def web_search(state: CRAGState) -> dict:
     question = state.get("rewritten_query") or state["question"]
     logger.info("Web search node — query: '%s'", question)
 
+    mode = (state.get("mode") or "private").lower()
+    from privacy.gateway import PrivacyGateway
+
+    # Privacy Gateway Evaluation
+    eval_res = PrivacyGateway.evaluate_outbound_request(
+        mode=mode,
+        raw_query=question,
+        destination="Tavily Web Search"
+    )
+
+    if eval_res["action"] == "BLOCK":
+        logger.info("Web search blocked by %s mode air-gap policy", mode)
+        return {
+            "web_results": [],
+            "final_context": [],
+            "steps_taken": [f"Web search blocked by {mode.capitalize()} Mode air-gap"],
+        }
+
+    search_query = eval_res["sanitized_query"]
+
     # Check for valid API key
     api_key = settings.tavily_api_key
     if not api_key or api_key.strip().lower() == "your_key_here":
@@ -43,7 +63,8 @@ async def web_search(state: CRAGState) -> dict:
         from tavily import TavilyClient
 
         client = TavilyClient(api_key=api_key)
-        raw_results = await asyncio.to_thread(client.search, query=question, max_results=5)
+        raw_results = await asyncio.to_thread(client.search, query=search_query, max_results=5)
+
 
         results: List[dict] = []
         for result in raw_results.get("results", []):

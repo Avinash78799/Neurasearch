@@ -160,11 +160,18 @@ class Settings(BaseSettings):
     )
 
 
+    # ── Auth & Security ────────────────────────────────────────────
+    jwt_secret: Optional[str] = Field(
+        default=None,
+        description="Secret key for JWT token signing"
+    )
+
     # ── CORS ───────────────────────────────────────────────────────
     frontend_url: str = Field(
         default="http://localhost:5173",
         description="Frontend URL for CORS"
     )
+
 
     model_config = {
         "env_file": ".env",

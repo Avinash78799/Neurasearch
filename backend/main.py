@@ -142,8 +142,35 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     role = user.get("role", "user")
-    access_token = create_access_token(data={"sub": user["username"], "role": role})
-    return {"access_token": access_token, "token_type": "bearer", "role": role, "username": user["username"]}
+    must_rotate = bool(user.get("must_rotate_password", 0))
+    access_token = create_access_token(data={"sub": user["username"], "role": role, "must_rotate_password": must_rotate})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": role,
+        "username": user["username"],
+        "must_rotate_password": must_rotate
+    }
+
+
+class RotatePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@v1_router.post("/auth/rotate-password")
+async def rotate_password_endpoint(req: RotatePasswordRequest, current_user: str = Depends(get_current_user)):
+    user = await asyncio.to_thread(db.get_user, current_user)
+    if not user or not await asyncio.to_thread(verify_password, req.old_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters long.")
+    if req.new_password == "password123":
+        raise HTTPException(status_code=400, detail="New password cannot be the default password.")
+    
+    new_hash = get_password_hash(req.new_password)
+    await asyncio.to_thread(db.update_user_password, current_user, new_hash)
+    return {"status": "success", "message": "Password updated successfully. Default credentials revoked."}
 
 
 class DeveloperVerifyRequest(BaseModel):
@@ -170,7 +197,9 @@ async def verify_developer_access(req: DeveloperVerifyRequest):
 async def get_me(current_user: str = Depends(get_current_user)):
     user = await asyncio.to_thread(db.get_user, current_user)
     role = user.get("role", "user") if user else "user"
-    return {"username": current_user, "role": role}
+    must_rotate = bool(user.get("must_rotate_password", 0)) if user else False
+    return {"username": current_user, "role": role, "must_rotate_password": must_rotate}
+
 
 
 # In-memory storage for latest RAGAS evaluation results
@@ -327,6 +356,8 @@ async def root_endpoint():
 class QueryRequest(BaseModel):
     question: str
     conversation_id: Optional[str] = None
+    mode: Optional[str] = "private"
+
 
 
 
@@ -476,6 +507,7 @@ async def query_pipeline(request: QueryRequest, context: WorkspaceContext = Depe
         initial_state = {
             "question": question,
             "workspace_id": context.workspace_id,
+            "mode": (request.mode or "private").lower(),
             "retry_count": 0,
             "messages": past_messages,
             "steps_taken": [],
@@ -483,10 +515,13 @@ async def query_pipeline(request: QueryRequest, context: WorkspaceContext = Depe
 
         current_state = {
             "question": question,
+            "workspace_id": context.workspace_id,
+            "mode": (request.mode or "private").lower(),
             "retry_count": 0,
             "messages": past_messages,
             "steps_taken": [],
         }
+
 
         try:
             # Stream graph updates node by node
@@ -877,7 +912,22 @@ async def delete_research_report_endpoint(report_id: str, context: WorkspaceCont
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class CitationExportRequest(BaseModel):
+    sources: List[Dict[str, Any]]
+    style: Optional[str] = "apa"
+
+
+
+@v1_router.post("/citations/format")
+async def format_citations_endpoint(req: CitationExportRequest):
+    """Format a list of sources into APA, MLA, or BibTeX bibliography."""
+    from citation_service import CitationService
+    formatted = CitationService.format_bibliography(req.sources, style=req.style or "apa")
+    return {"style": req.style or "apa", "formatted": formatted}
+
+
 # ── Knowledge Hub Endpoints ──────────────────────────────────────────
+
 from knowledge_service import KnowledgeService
 from models.knowledge import CreateKnowledgeItemRequest, UpdateKnowledgeItemRequest, KnowledgeType
 

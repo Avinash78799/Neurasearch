@@ -85,32 +85,46 @@ class SecureWebFetcher:
         self.max_bytes = max_content_length_kb * 1024
 
     async def fetch_and_extract(self, url: str) -> FetchedDocument:
-        if not is_safe_url(url):
-            return FetchedDocument(
-                url=url,
-                title="Blocked Content",
-                content="",
-                status_code=403,
-                is_safe=False,
-                error_message="Access denied: URL resolves to a protected or private IP address."
-            )
-
+        current_url = url
+        max_redirect_hops = 3
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 (NeuraSearch Research Bot/2.0)"
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
-                response = await client.get(url, headers=headers)
-                
-                if response.status_code != 200:
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
+                response = None
+                for _ in range(max_redirect_hops + 1):
+                    if not is_safe_url(current_url):
+                        return FetchedDocument(
+                            url=current_url,
+                            title="Blocked Content",
+                            content="",
+                            status_code=403,
+                            is_safe=False,
+                            error_message="Access denied: URL or redirect target resolves to a protected or private IP address."
+                        )
+
+                    response = await client.get(current_url, headers=headers)
+                    if response.status_code in (301, 302, 303, 307, 308):
+                        location = response.headers.get("Location")
+                        if not location:
+                            break
+                        from urllib.parse import urljoin
+                        current_url = urljoin(current_url, location)
+                        continue
+                    break
+
+                if not response or response.status_code != 200:
+                    status = response.status_code if response else 500
                     return FetchedDocument(
-                        url=url,
+                        url=current_url,
                         title="",
                         content="",
-                        status_code=response.status_code,
-                        error_message=f"HTTP {response.status_code}"
+                        status_code=status,
+                        error_message=f"HTTP {status}"
                     )
+
 
                 content_type = response.headers.get("content-type", "").lower()
 

@@ -105,6 +105,77 @@ def ingest_txt(file_path: str, filename: str) -> list[Document]:
     return chunks
 
 
+def ingest_docx(file_path: str, filename: str) -> list[Document]:
+    """Extract text from a DOCX Word document and return chunked Document objects."""
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"DOCX file not found: {file_path}")
+
+    import docx
+    doc = docx.Document(str(path))
+    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    
+    # Also extract table text
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+            if row_text:
+                paragraphs.append(row_text)
+
+    full_text = "\n\n".join(paragraphs)
+    if not full_text.strip():
+        raise IngestionError(f"No extractable text found in DOCX: {filename}")
+
+    metadata: dict[str, Any] = {
+        "source": filename,
+        "page_number": 1,
+    }
+    if settings.use_semantic_chunker:
+        chunks = semantic_chunk(full_text, metadata)
+    else:
+        chunks = chunk_text(full_text, metadata)
+
+    logger.info("Parsed DOCX %s: %d paragraphs → %d chunks", filename, len(paragraphs), len(chunks))
+    return chunks
+
+
+def ingest_pptx(file_path: str, filename: str) -> list[Document]:
+    """Extract text from a PPTX PowerPoint presentation and return chunked Document objects."""
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"PPTX file not found: {file_path}")
+
+    from pptx import Presentation
+    prs = Presentation(str(path))
+    all_chunks: list[Document] = []
+
+    for slide_idx, slide in enumerate(prs.slides, start=1):
+        slide_texts = []
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                slide_texts.append(shape.text.strip())
+        
+        slide_content = "\n".join(slide_texts)
+        if not slide_content.strip():
+            continue
+
+        metadata: dict[str, Any] = {
+            "source": filename,
+            "page_number": slide_idx,
+        }
+        if settings.use_semantic_chunker:
+            chunks = semantic_chunk(slide_content, metadata)
+        else:
+            chunks = chunk_text(slide_content, metadata)
+        all_chunks.extend(chunks)
+
+    if not all_chunks:
+        raise IngestionError(f"No extractable text found in PPTX: {filename}")
+
+    logger.info("Parsed PPTX %s: %d slides → %d chunks", filename, len(prs.slides), len(all_chunks))
+    return all_chunks
+
+
 # ── Orchestrator ──────────────────────────────────────────────────────
 
 
@@ -117,6 +188,14 @@ def ingest_file(file_path: str, filename: str, context: WorkspaceContext | str |
             reader = PdfReader(file_path)
             num_pages = len(reader.pages)
             chunks = ingest_pdf(file_path, filename)
+        elif ext in (".docx", ".doc"):
+            num_pages = 1
+            chunks = ingest_docx(file_path, filename)
+        elif ext in (".pptx", ".ppt"):
+            from pptx import Presentation
+            prs = Presentation(file_path)
+            num_pages = len(prs.slides)
+            chunks = ingest_pptx(file_path, filename)
         elif ext in _TEXT_EXTENSIONS:
             num_pages = 1
             chunks = ingest_txt(file_path, filename)
@@ -129,6 +208,7 @@ def ingest_file(file_path: str, filename: str, context: WorkspaceContext | str |
             )
             num_pages = 1
             chunks = ingest_txt(file_path, filename)
+
 
         # Store in vector DB with workspace.
         add_documents(chunks, context)

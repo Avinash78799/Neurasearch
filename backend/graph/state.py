@@ -11,8 +11,10 @@ class CRAGState(TypedDict):
     # ── Input ──────────────────────────────────────────────────────
     question: str                          # Original user query
     workspace_id: Optional[str]            # Logical workspace scope
+    mode: Optional[str]                    # Privacy Mode: "private" | "online" | "hybrid"
     research_session_id: Optional[str]      # Scoped research session ID
     evidence_packages: Optional[List[EvidencePackage]]  # Scoped retrieved evidence packages
+
 
     # ── HyDE ───────────────────────────────────────────────────────
     hypothetical_answer: Optional[str]     # LLM-generated hypothetical doc

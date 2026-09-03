@@ -27,6 +27,8 @@ tavily-python==0.5.0
 
 # ── Document Parsing ──────────────────────────────────────────────
 pypdf==5.0.0
+python-pptx>=1.0.0
+
 
 # ── Evaluation (Optional, excluded to bypass compile failures) ─────
 # ragas>=0.2.0

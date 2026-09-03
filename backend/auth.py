@@ -9,12 +9,41 @@ from pydantic import BaseModel
 
 from config import settings
 
+import secrets
+from pathlib import Path
+
 logger = logging.getLogger("neurasearch.auth")
 
-# Configuration
-JWT_SECRET_KEY = settings.jwt_secret if hasattr(settings, "jwt_secret") else "neurasearch_super_secret_local_key_123"
+def _get_or_create_jwt_secret() -> str:
+
+    if settings.jwt_secret and settings.jwt_secret.strip():
+        return settings.jwt_secret.strip()
+    
+    secret_path = Path(__file__).parent / ".jwt_secret"
+    if secret_path.exists():
+        try:
+            with open(secret_path, "r", encoding="utf-8") as f:
+                saved_secret = f.read().strip()
+                if saved_secret:
+                    return saved_secret
+        except Exception as e:
+            logger.warning("Could not read local .jwt_secret: %s", e)
+    
+    # Generate a cryptographically strong 256-bit random secret
+    new_secret = secrets.token_urlsafe(32)
+    try:
+        with open(secret_path, "w", encoding="utf-8") as f:
+            f.write(new_secret)
+        logger.info("Generated new randomized JWT secret and persisted to %s", secret_path.name)
+    except Exception as e:
+        logger.warning("Could not persist .jwt_secret file: %s", e)
+    
+    return new_secret
+
+JWT_SECRET_KEY = _get_or_create_jwt_secret()
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token", auto_error=False)

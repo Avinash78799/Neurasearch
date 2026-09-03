@@ -116,8 +116,75 @@ class DuckDuckGoSearchProvider:
             return []
 
 
-def get_active_search_provider() -> SearchProvider:
-    """Factory to resolve active search provider."""
+class ArXivSearchProvider:
+    """Specialized search adapter for arXiv research publications."""
+
+    async def search(
+        self, 
+        query: str, 
+        num_results: int = 5, 
+        recency_days: Optional[int] = None,
+        allowed_domains: Optional[List[str]] = None,
+        blocked_domains: Optional[List[str]] = None
+    ) -> List[SearchResult]:
+        from privacy.gateway import PrivacyGateway
+        eval_res = PrivacyGateway.evaluate_outbound_request(
+            mode="online",
+            raw_query=query,
+            destination="arXiv API"
+        )
+        if eval_res["action"] == "BLOCK":
+            logger.info("arXiv query blocked by privacy policy")
+            return []
+
+        clean_query = eval_res["sanitized_query"]
+        import httpx
+        import xml.etree.ElementTree as ET
+
+        url = f"http://export.arxiv.org/api/query?search_query=all:{clean_query}&start=0&max_results={num_results}"
+        try:
+            async with httpx.AsyncClient(timeout=8.0, follow_redirects=False) as client:
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    return []
+                
+                root = ET.fromstring(resp.text)
+                ns = {"atom": "http://www.w3.org/2005/Atom"}
+                results = []
+                for entry in root.findall("atom:entry", ns):
+                    title_elem = entry.find("atom:title", ns)
+                    summary_elem = entry.find("atom:summary", ns)
+                    id_elem = entry.find("atom:id", ns)
+                    published_elem = entry.find("atom:published", ns)
+
+                    title = title_elem.text.strip().replace("\n", " ") if title_elem is not None and title_elem.text else "arXiv Paper"
+                    summary = summary_elem.text.strip().replace("\n", " ") if summary_elem is not None and summary_elem.text else ""
+                    paper_url = id_elem.text.strip() if id_elem is not None and id_elem.text else ""
+                    published = published_elem.text.strip() if published_elem is not None and published_elem.text else ""
+
+                    results.append(
+                        SearchResult(
+                            url=paper_url,
+                            title=title,
+                            snippet=summary[:600],
+                            publisher="arXiv.org",
+                            published_date=published,
+                            score=0.92,
+                            source_type="official_doc",
+                            origin="online"
+                        )
+                    )
+                return results
+        except Exception as exc:
+            logger.error("arXiv search failed: %s", exc)
+            return []
+
+
+def get_active_search_provider(source_type: str = "general") -> SearchProvider:
+    """Factory to resolve active search provider based on source type and settings."""
+    if source_type == "academic":
+        return ArXivSearchProvider()
     if settings.tavily_api_key and settings.tavily_api_key != "your_key_here":
         return TavilySearchProvider()
     return DuckDuckGoSearchProvider()
+

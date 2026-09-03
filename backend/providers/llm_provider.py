@@ -14,6 +14,8 @@ logger = logging.getLogger("neurasearch.providers.llm")
 
 class OllamaLLMProvider:
     """Local Ollama Adapter using ChatOllama."""
+    is_local: bool = True
+    provider_name: str = "ollama"
     
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = base_url or settings.ollama_base_url
@@ -78,6 +80,8 @@ class OllamaLLMProvider:
 
 class GroqLLMProvider:
     """Groq Cloud LPU Adapter for ultra-low latency research synthesis (350+ tok/s)."""
+    is_local: bool = False
+    provider_name: str = "groq"
 
     def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.3-70b-versatile"):
         self.api_key = api_key or settings.groq_api_key
@@ -142,6 +146,8 @@ class GroqLLMProvider:
 
 class OpenAILLMProvider:
     """OpenAI Adapter for GPT-4o / GPT-4o-mini."""
+    is_local: bool = False
+    provider_name: str = "openai"
 
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o"):
         self.api_key = api_key or settings.openai_api_key
@@ -204,6 +210,74 @@ class OpenAILLMProvider:
             yield str(chunk.content)
 
 
+class DeepSeekLLMProvider:
+    """DeepSeek Cloud Adapter."""
+    is_local: bool = False
+    provider_name: str = "deepseek"
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-chat"):
+        self.api_key = api_key or settings.deepseek_api_key
+        self.default_model = model
+
+    async def generate(
+        self, 
+        prompt: str, 
+        system_prompt: Optional[str] = None, 
+        temperature: float = 0.1, 
+        max_tokens: int = 4096,
+        model: Optional[str] = None
+    ) -> LLMResponse:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.messages import SystemMessage, HumanMessage
+
+        active_model = model or self.default_model
+        llm = ChatOpenAI(
+            api_key=self.api_key,
+            base_url="https://api.deepseek.com/v1",
+            model=active_model,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+
+        response = await llm.ainvoke(messages)
+        return LLMResponse(
+            content=str(response.content),
+            model=active_model,
+            tokens_used=len(response.content.split())
+        )
+
+    async def stream(
+        self, 
+        prompt: str, 
+        system_prompt: Optional[str] = None, 
+        temperature: float = 0.1, 
+        max_tokens: int = 4096,
+        model: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.messages import SystemMessage, HumanMessage
+
+        active_model = model or self.default_model
+        llm = ChatOpenAI(
+            api_key=self.api_key,
+            base_url="https://api.deepseek.com/v1",
+            model=active_model,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+
+        async for chunk in llm.astream(messages):
+            yield str(chunk.content)
+
+
 def get_active_llm_provider() -> LLMProvider:
     """Factory to resolve active LLM provider based on settings."""
     provider_type = (settings.llm_provider or "ollama").lower()
@@ -212,6 +286,9 @@ def get_active_llm_provider() -> LLMProvider:
         return GroqLLMProvider()
     elif provider_type == "openai" and settings.openai_api_key:
         return OpenAILLMProvider()
+    elif provider_type == "deepseek" and settings.deepseek_api_key:
+        return DeepSeekLLMProvider()
     
     # Default to Local Ollama
     return OllamaLLMProvider()
+

@@ -70,8 +70,11 @@ class LLMResponse:
 
 class LLMProvider(Protocol):
     """Abstract protocol for text generation and structured LLM inference."""
+    is_local: bool
+    provider_name: str
     
     async def generate(
+
         self, 
         prompt: str, 
         system_prompt: Optional[str] = None, 

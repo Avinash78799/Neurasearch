@@ -57,16 +57,17 @@ PROFILES: Dict[str, ProfileConfig] = {
     "balanced": ProfileConfig(
         id="balanced",
         name="Balanced / Creator (6–8GB VRAM Gaming Laptops)",
-        description="Optimized for mid-range gaming laptops with RTX 3050/3060/4050 and 16GB RAM. Deep reasoning.",
+        description="Optimized for mid-range gaming laptops with RTX 3050/3060/4050 and 16GB RAM. Native tool-calling with Qwen 3 / Llama 3.1.",
         target_hardware="Intel i7/Ryzen 7, 16GB RAM, RTX 3050/3060/4050 (6–8GB VRAM)",
-        recommended_model="llama3.1:8b",
+        recommended_model="qwen3:8b",
         top_k=5,
         chunk_size=1000,
         chunk_overlap=200,
         num_ctx=4096,
-        estimated_latency_sec="8–14s",
+        estimated_latency_sec="6–12s",
         badge_color="amber"
     ),
+
     "turbo": ProfileConfig(
         id="turbo",
         name="Cloud Turbo & Workstation (Groq 70B / High-End)",
