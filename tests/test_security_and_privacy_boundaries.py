@@ -117,6 +117,32 @@ class TestSecurityAndPrivacyBoundaries(unittest.TestCase):
 
         asyncio.run(run())
 
+    def test_1_1b_online_mode_does_not_pull_or_leak_private_documents(self):
+        """1.1b: Online Mode MUST NOT retrieve or leak private workspace documents to cloud LLMs."""
+        cloud_llm = MockCloudLLM()
+        mock_search = MockSearchProvider()
+        agent = AutonomousResearchAgent(
+            workspace_id="test_workspace_secrets",
+            mode="online",
+            depth="fast",
+            llm=cloud_llm,
+            search_provider=mock_search
+        )
+
+        async def run():
+            events = []
+            async for ev in agent.execute_research("Research public semiconductor supply chains"):
+                events.append(ev)
+            # Verify synthesis completed
+            self.assertGreater(len(cloud_llm.intercepted_prompts), 0)
+            # Verify no private document markers or workspace secrets reached the prompt
+            for prompt in cloud_llm.intercepted_prompts:
+                self.assertNotIn("Private Workspace", prompt)
+                self.assertNotIn("private_file", prompt)
+
+        asyncio.run(run())
+
+
 
     def test_1_2_sanitizer_redacts_realistic_secrets_and_high_entropy_tokens(self):
         """1.2: Query sanitizer must catch embedded secret patterns and high-entropy keys."""

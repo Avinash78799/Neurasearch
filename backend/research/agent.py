@@ -200,46 +200,48 @@ class AutonomousResearchAgent:
         source_urls_seen = set()
         has_private_documents = False
 
-        # Step 3a: Private Retrieval (Always run for workspace knowledge)
-        try:
-            from rag.vectorstore import similarity_search_by_vector
-            ctx = WorkspaceContext(workspace_id=self.workspace_id)
-            
-            # Vector search
-            from core.model_registry import get_embeddings
-            embedder = get_embeddings()
-            q_emb = await embedder.aembed_query(objective)
-            p_docs = similarity_search_by_vector(q_emb, k=4, context=ctx)
-            
-            for p_doc in p_docs:
-                src_id = str(uuid.uuid4())
-                src_url = p_doc.metadata.get("source", "Private Document")
-                has_private_documents = True
-                db.add_research_source_v2(
-                    source_id=src_id,
-                    session_id=session_id,
-                    workspace_id=self.workspace_id,
-                    origin="private",
-                    url=src_url,
-                    title=src_url.split("/")[-1],
-                    publisher="Private Workspace",
-                    source_type="private_file",
-                    trust_score=1.0,
-                    raw_snippet=p_doc.page_content[:1500]
-                )
-                all_sources.append({
-                    "id": src_id,
-                    "url": src_url,
-                    "title": src_url.split("/")[-1],
-                    "origin": "private",
-                    "publisher": "Private Workspace",
-                    "snippet": p_doc.page_content[:1500],
-                    "trust_score": 1.0
-                })
-        except Exception as exc:
-            logger.info("Private search skipped or empty: %s", exc)
+        # Step 3a: Private Retrieval (Only run for Private and Hybrid modes)
+        if self.mode in ("private", "hybrid"):
+            try:
+                from rag.vectorstore import similarity_search_by_vector
+                ctx = WorkspaceContext(workspace_id=self.workspace_id)
+                
+                # Vector search
+                from core.model_registry import get_embeddings
+                embedder = get_embeddings()
+                q_emb = await embedder.aembed_query(objective)
+                p_docs = similarity_search_by_vector(q_emb, k=4, context=ctx)
+                
+                for p_doc in p_docs:
+                    src_id = str(uuid.uuid4())
+                    src_url = p_doc.metadata.get("source", "Private Document")
+                    has_private_documents = True
+                    db.add_research_source_v2(
+                        source_id=src_id,
+                        session_id=session_id,
+                        workspace_id=self.workspace_id,
+                        origin="private",
+                        url=src_url,
+                        title=src_url.split("/")[-1],
+                        publisher="Private Workspace",
+                        source_type="private_file",
+                        trust_score=1.0,
+                        raw_snippet=p_doc.page_content[:1500]
+                    )
+                    all_sources.append({
+                        "id": src_id,
+                        "url": src_url,
+                        "title": src_url.split("/")[-1],
+                        "origin": "private",
+                        "publisher": "Private Workspace",
+                        "snippet": p_doc.page_content[:1500],
+                        "trust_score": 1.0
+                    })
+            except Exception as exc:
+                logger.info("Private search skipped or empty: %s", exc)
 
         # Step 3b: Online Search (Subject to Privacy Gateway and Concurrency Limits)
+
         if self.mode in ("online", "hybrid"):
             sem = asyncio.Semaphore(settings.max_concurrent_subqueries)
 
@@ -438,19 +440,21 @@ class AutonomousResearchAgent:
         )
 
 
-        # Boundary Check: Cloud LLM Leak Protection for Private & Hybrid Modes
+        # Boundary Check: Cloud LLM Leak Protection across all modes
         if has_private_documents and not is_local_llm:
             if self.mode == "private":
                 raise PrivacyFirewallViolation("Private Mode is strictly air-gapped. Sending private document context to cloud LLM is blocked.")
-            elif self.mode == "hybrid":
+            elif self.mode in ("hybrid", "online"):
                 llm_eval = PrivacyGateway.evaluate_outbound_request(
-                    mode="hybrid",
+                    mode=self.mode,
                     raw_query="Synthesis monograph prompt with private evidence context",
                     destination=f"Cloud LLM ({getattr(self.llm, 'provider_name', 'cloud')})",
                     session_id=session_id,
                     contains_private_context=True
                 )
-                if llm_eval["action"] == "REQUIRE_CONSENT":
+                if llm_eval["action"] == "BLOCK":
+                    raise PrivacyFirewallViolation(f"Sending private document context to cloud LLM is blocked in '{self.mode}' mode.")
+                elif llm_eval["action"] == "REQUIRE_CONSENT":
                     grant_id = llm_eval["grant_id"]
                     yield ResearchEventStream.format_event(
                         ResearchState.AWAITING_PERMISSION,
@@ -466,6 +470,9 @@ class AutonomousResearchAgent:
                         await asyncio.sleep(0.5)
                     if not approved:
                         raise PrivacyFirewallViolation("Cloud LLM synthesis with private context was rejected or timed out.")
+            else:
+                raise PrivacyFirewallViolation("Outbound transmission of private context to cloud LLM is blocked by default policy.")
+
 
         final_response = await self.llm.generate(prompt=synthesis_prompt, temperature=0.15)
         monograph_markdown = final_response.content.strip()
