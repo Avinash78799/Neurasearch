@@ -91,14 +91,34 @@ async def security_headers_middleware(request: Request, call_next):
     return response
 
 
+# Request Payload Size Limiting Middleware (DoS Protection)
+@app.middleware("http")
+async def request_size_limit_middleware(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            cl = int(content_length)
+            is_upload = any(request.url.path.endswith(p) for p in ("/ingest", "/import"))
+            max_limit = 50 * 1024 * 1024 if is_upload else 5 * 1024 * 1024
+            if cl > max_limit:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Payload too large. Maximum allowable request size is {max_limit // (1024 * 1024)}MB."}
+                )
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length header."})
+    return await call_next(request)
+
+
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=["Authorization", "Content-Type", "X-Workspace-ID", "Accept", "Origin", "User-Agent"],
 )
+
 
 # Global Exception Handlers
 from core.exceptions import (
@@ -163,7 +183,8 @@ async def jwt_auth_middleware(request: Request, call_next):
     return response
 
 @app.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user = await asyncio.to_thread(db.get_user, form_data.username)
     if not user or not await asyncio.to_thread(verify_password, form_data.password, user["password_hash"]):
         raise HTTPException(
@@ -189,7 +210,8 @@ class RotatePasswordRequest(BaseModel):
 
 
 @v1_router.post("/auth/rotate-password")
-async def rotate_password_endpoint(req: RotatePasswordRequest, current_user: str = Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def rotate_password_endpoint(request: Request, req: RotatePasswordRequest, current_user: str = Depends(get_current_user)):
     user = await asyncio.to_thread(db.get_user, current_user)
     if not user or not await asyncio.to_thread(verify_password, req.old_password, user["password_hash"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
@@ -208,7 +230,8 @@ class DeveloperVerifyRequest(BaseModel):
     password: str
 
 @v1_router.post("/auth/developer-verify")
-async def verify_developer_access(req: DeveloperVerifyRequest):
+@limiter.limit("5/minute")
+async def verify_developer_access(request: Request, req: DeveloperVerifyRequest):
     """Authenticate developer access for system maintenance and low-level diagnostics."""
     username = req.username or "admin"
     user = await asyncio.to_thread(db.get_user, username)
@@ -219,6 +242,7 @@ async def verify_developer_access(req: DeveloperVerifyRequest):
         raise HTTPException(status_code=403, detail="User does not have Developer/Admin privileges.")
     
     return {"authenticated": True, "role": user.get("role", "developer"), "username": user["username"]}
+
 
 
 
@@ -325,7 +349,8 @@ async def list_workspaces_route(context: WorkspaceContext = Depends(get_workspac
     try:
         return {"workspaces": WorkspaceService.list_workspaces(username=context.username)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list workspaces: {e}")
+        logger.error("Failed to list workspaces: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to list workspaces.")
 
 @v1_router.post("/workspaces")
 async def create_workspace_route(req: WorkspaceCreateRequest, context: WorkspaceContext = Depends(get_workspace_context)):
@@ -340,7 +365,9 @@ async def create_workspace_route(req: WorkspaceCreateRequest, context: Workspace
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create workspace: {e}")
+        logger.error("Failed to create workspace: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to create workspace.")
+
 
 
 
@@ -359,7 +386,8 @@ async def export_workspace_route(workspace_id: str, current_user: str = Depends(
         data = WorkspaceTransferService.export_workspace(workspace_id, tmp_path)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export workspace: {e}")
+        logger.error("Failed to export workspace: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to export workspace.")
     finally:
         if os.path.exists(tmp_path):
             try:
@@ -393,7 +421,9 @@ async def import_workspace_route(workspace_id: str, file: UploadFile = File(...)
         WorkspaceTransferService.import_workspace(workspace_id, tmp_path)
         return {"status": "success"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to import workspace: {e}")
+        logger.error("Failed to import workspace: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to import workspace.")
+
     finally:
         if os.path.exists(tmp_path):
             try:
@@ -467,9 +497,31 @@ async def ingest_document(file: UploadFile = File(...), background_tasks: Backgr
                     detail=f"Free Tier limit reached. Maximum {settings.max_documents_free} documents allowed. Please upgrade to Pro."
                 )
 
-        content = await file.read()
-        if len(content) > 50 * 1024 * 1024:  # 50MB limit
-            raise HTTPException(status_code=400, detail="File size exceeds maximum allowable limit (50MB).")
+        # Stream read file in chunks to prevent unbounded memory allocation
+        chunks = []
+        total_read = 0
+        max_bytes = 50 * 1024 * 1024  # 50MB
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            total_read += len(chunk)
+            if total_read > max_bytes:
+                raise HTTPException(status_code=400, detail="File size exceeds maximum allowable limit (50MB).")
+            chunks.append(chunk)
+        content = b"".join(chunks)
+
+        # Magic byte & content sniffing validation to prevent polyglot / executable attacks
+        if ext == ".pdf":
+            if not content.startswith(b"%PDF"):
+                raise HTTPException(status_code=400, detail="Invalid PDF file: Missing %PDF signature.")
+        elif ext in (".docx", ".pptx", ".doc", ".ppt"):
+            if not (content.startswith(b"PK\x03\x04") or content.startswith(b"\xd0\xcf\x11\xe0")):
+                raise HTTPException(status_code=400, detail="Invalid Office document: Missing valid container signature.")
+        elif ext in (".txt", ".md", ".csv", ".json", ".log", ".rst"):
+            if b"\x00" in content[:8192]:
+                raise HTTPException(status_code=400, detail="Invalid text document: Binary data or null bytes detected.")
+            try:
+                content.decode("utf-8")
+            except UnicodeDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid text document: Must be valid UTF-8 encoded text.")
 
         stats = await asyncio.to_thread(ingest_bytes, content, clean_filename, context)
         if stats.get("status") != "success":
@@ -486,7 +538,8 @@ async def ingest_document(file: UploadFile = File(...), background_tasks: Backgr
         raise
     except Exception as e:
         logger.error("Failed to ingest document %s: %s", clean_filename, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during document ingestion.")
+
 
 
 
@@ -742,7 +795,7 @@ async def list_documents(context: WorkspaceContext = Depends(get_workspace_conte
         return {"documents": result}
     except Exception as e:
         logger.error("Failed to list documents: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list documents.")
 
 
 @v1_router.delete("/documents/{source}")
@@ -759,7 +812,7 @@ async def delete_document(source: str, context: WorkspaceContext = Depends(get_w
         return {"status": "success", "message": f"Deleted {source}"}
     except Exception as e:
         logger.error("Failed to delete document %s: %s", source, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete document.")
 
 
 # Document Insights Endpoints
@@ -811,7 +864,7 @@ async def get_conversations_endpoint(context: WorkspaceContext = Depends(get_wor
         return {"conversations": convs}
     except Exception as e:
         logger.error("Failed to fetch conversations: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch conversations.")
 
 
 @v1_router.get("/conversations/{conv_id}/messages")
@@ -822,7 +875,7 @@ async def get_conversation_messages_endpoint(conv_id: str, context: WorkspaceCon
         return {"messages": messages}
     except Exception as e:
         logger.error("Failed to fetch conversation messages: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch conversation messages.")
 
 
 @v1_router.delete("/conversations/{conv_id}")
@@ -833,7 +886,7 @@ async def delete_conversation_endpoint(conv_id: str, context: WorkspaceContext =
         return {"status": "success", "message": f"Conversation {conv_id} deleted."}
     except Exception as e:
         logger.error("Failed to delete conversation: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete conversation.")
 
 
 # Deep Research Endpoints
@@ -871,7 +924,8 @@ async def create_research_blueprint_endpoint(request: Request, question_request:
         }
     except Exception as e:
         logger.error("Failed to generate research blueprint: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to generate research blueprint.")
+
 
 
 @v1_router.post("/research/execute")
@@ -950,7 +1004,7 @@ async def get_research_reports_endpoint(context: WorkspaceContext = Depends(get_
         return {"reports": reports}
     except Exception as e:
         logger.error("Failed to fetch research reports: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch research reports.")
 
 
 @v1_router.get("/research/reports/{report_id}")
@@ -971,7 +1025,8 @@ async def pin_research_report_endpoint(report_id: str, payload: dict, context: W
         return {"status": "success", "message": "Report pin state toggled."}
     except Exception as e:
         logger.error("Failed to pin report: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update report pin state.")
+
 
 
 @v1_router.delete("/research/reports/{report_id}")
@@ -982,7 +1037,8 @@ async def delete_research_report_endpoint(report_id: str, context: WorkspaceCont
         return {"status": "success", "message": "Report deleted."}
     except Exception as e:
         logger.error("Failed to delete report: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete report.")
+
 
 
 class CitationExportRequest(BaseModel):
@@ -1285,7 +1341,7 @@ async def import_github_repo_endpoint(req: GitHubImportRequest, context: Workspa
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error("GitHub import failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to import GitHub repo: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to import GitHub repository.")
 
 
 @v1_router.get("/github/issues")
@@ -1302,7 +1358,7 @@ async def get_github_issues_endpoint(repo: str, token: Optional[str] = None, sta
         return {"repo": repo, "issues": issues}
     except Exception as e:
         logger.error("GitHub issues fetch failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch GitHub issues: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch GitHub issues.")
 
 
 # Hardware Auto-Detection & Adaptive Profiles
@@ -1332,7 +1388,8 @@ async def apply_hardware_profile_endpoint(req: ApplyHardwareProfileRequest):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error("Failed to apply hardware profile: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to apply profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to apply hardware profile.")
+
 
 
 # Settings & Usage Endpoints
@@ -1414,7 +1471,7 @@ async def get_usage_endpoint(context: WorkspaceContext = Depends(get_workspace_c
         }
     except Exception as e:
         logger.error("Failed to fetch usage: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch usage metrics.")
 
 
 @v1_router.get("/eval/run")
@@ -1460,7 +1517,8 @@ async def run_evaluation():
             raw_cases = json.load(f)
     except Exception as e:
         logger.error("Failed to load testset: %s", e)
-        raise HTTPException(status_code=500, detail=f"Failed to load test set: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to load evaluation test set.")
+
 
     logger.info("Running evaluation on %d test cases...", len(raw_cases))
     processed_cases = []
@@ -1633,7 +1691,7 @@ async def get_analytics(context: WorkspaceContext = Depends(get_workspace_contex
         }
     except Exception as e:
         logger.error("Failed to compile analytics: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to compile analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to compile analytics.")
 
 
 # In-memory storage for latest 10-Dimension Benchmark results
@@ -1657,7 +1715,8 @@ async def run_benchmark_suite_endpoint():
         return latest_benchmark_results
     except Exception as e:
         logger.error("Benchmark suite execution failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Benchmark failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Benchmark execution failed.")
+
 
 
 @v1_router.get("/eval/benchmark/results")

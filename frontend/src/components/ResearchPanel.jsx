@@ -17,6 +17,27 @@ import {
   BookOpen
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+
+const safeMarkdownComponents = {
+  a({ href, children, ...props }) {
+    const isSafe = href && (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("#") || href.startsWith("/"));
+    if (!isSafe) {
+      return <span className="text-gray-500 underline cursor-not-allowed" title="Blocked unsafe link">{children}</span>;
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-cyan-400 hover:text-cyan-300 underline font-medium break-all"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+};
+
 import toast from "react-hot-toast";
 
 export default function ResearchPanel({ proMode, onSaveToKnowledge, initialQuestion = "" }) {
@@ -518,8 +539,9 @@ export default function ResearchPanel({ proMode, onSaveToKnowledge, initialQuest
               </div>
 
               <div className="prose-neura">
-                <ReactMarkdown>{report.report_content}</ReactMarkdown>
+                <ReactMarkdown components={safeMarkdownComponents}>{report.report_content}</ReactMarkdown>
               </div>
+
 
               {/* Citations footer */}
               {report.citations && report.citations.length > 0 && (

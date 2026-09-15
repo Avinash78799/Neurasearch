@@ -2,6 +2,27 @@ import React, { useState } from "react";
 import { RefreshCw, X, CheckCircle, Sparkles, Layers, ArrowRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
+const safeMarkdownComponents = {
+  a({ href, children, ...props }) {
+    const isSafe = href && (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("#") || href.startsWith("/"));
+    if (!isSafe) {
+      return <span className="text-gray-500 underline cursor-not-allowed" title="Blocked unsafe link">{children}</span>;
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-cyan-400 hover:text-cyan-300 underline font-medium break-all"
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+};
+
+
 export default function LivingResearchModal({
   isOpen,
   onClose,
@@ -124,8 +145,9 @@ export default function LivingResearchModal({
               </div>
 
               <div className="prose prose-invert prose-sm max-w-none text-xs text-slate-200 leading-relaxed bg-carbon-950 p-5 rounded-xl border border-carbon-800">
-                <ReactMarkdown>{deltaReport}</ReactMarkdown>
+                <ReactMarkdown components={safeMarkdownComponents}>{deltaReport}</ReactMarkdown>
               </div>
+
             </div>
           )}
         </div>

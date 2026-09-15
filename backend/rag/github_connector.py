@@ -36,8 +36,20 @@ def _parse_github_url(repo_input: str) -> tuple[str, str, Optional[str]]:
         
     owner = parts[0]
     repo = parts[1]
+    
+    # Strict validation of owner and repo to prevent URL injection or traversal
+    if (
+        ".." in owner or ".." in repo or
+        owner in (".", "..") or repo in (".", "..") or
+        not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", owner) or
+        not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", repo)
+    ):
+        raise ValueError(f"Invalid characters or path traversal in GitHub repository identifier: '{owner}/{repo}'")
+
+
     path = "/".join(parts[2:]) if len(parts) > 2 else None
     return owner, repo, path
+
 
 
 class GitHubConnector:

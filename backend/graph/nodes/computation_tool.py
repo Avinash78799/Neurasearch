@@ -1,3 +1,4 @@
+import ast
 import subprocess
 import sys
 import tempfile
@@ -6,17 +7,60 @@ import logging
 
 logger = logging.getLogger("neurasearch.computation")
 
+FORBIDDEN_ATTRIBUTES = {
+    "__subclasses__", "__bases__", "__base__", "__mro__",
+    "__globals__", "__code__", "__builtins__", "__import__",
+    "__dict__", "__class__", "__reduce__", "__reduce_ex__",
+    "__init_subclass__"
+}
+
+FORBIDDEN_NAMES = {
+    "eval", "exec", "compile", "__import__", "getattr", "setattr",
+    "delattr", "open", "breakpoint", "input", "exit", "quit"
+}
+
+
+def is_code_safe(code_str: str) -> tuple[bool, str]:
+    """Static AST analyzer verifying no dunder attribute traversal or dangerous builtins exist."""
+    try:
+        tree = ast.parse(code_str)
+    except SyntaxError as err:
+        return False, f"Syntax error: {err}"
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_ATTRIBUTES:
+            return False, f"Access to restricted attribute '{node.attr}' is blocked."
+        if isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
+            return False, f"Use of restricted identifier '{node.id}' is blocked."
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in FORBIDDEN_NAMES:
+                return False, f"Call to restricted function '{node.func.id}' is blocked."
+    return True, ""
+
+
 def execute_computation(code_str: str) -> dict:
     """Executes a python code segment in a restricted sandbox subprocess.
 
     Enforces:
+    - Pre-execution AST security validation against jailbreak patterns.
     - 3-second execution timeout.
     - Restricted safe builtins (math, datetime, list operations).
     - Blocked sensitive modules (os, sys, subprocess, socket, shutil).
     - Empty env to block network and ambient env vars access.
     - Captures stdout/stderr and extracts the 'result' variable.
     """
+    safe, reason = is_code_safe(code_str)
+    if not safe:
+        logger.warning("Computation sandbox rejected code: %s", reason)
+        return {
+            "status": "error",
+            "output": None,
+            "result": None,
+            "error": f"Security validation failed: {reason}"
+        }
+
     wrapped_code = f"""# Import standard safe modules first, before blocking imports
+
 import math
 import datetime
 import json

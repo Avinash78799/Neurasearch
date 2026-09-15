@@ -59,7 +59,10 @@ result = "success"
 """
         res_fs = execute_computation(code_unsafe_fs)
         self.assertEqual(res_fs["status"], "error")
-        self.assertIn("name 'open' is not defined", res_fs["error"])
+        self.assertTrue(
+            any(msg in res_fs["error"] for msg in ["name 'open' is not defined", "restricted function 'open' is blocked"]),
+            f"Unexpected error: {res_fs['error']}"
+        )
 
         # 4. Unsafe Sandbox Execution: system commands
         code_unsafe_os = """
@@ -69,8 +72,11 @@ result = "success"
 """
         res_os = execute_computation(code_unsafe_os)
         self.assertEqual(res_os["status"], "error")
-        # Should raise error because os module in sys.modules is blocked (None)
-        self.assertIn("blocked in sandbox", res_os["error"])
+        self.assertTrue(
+            any(msg in res_os["error"] for msg in ["blocked in sandbox", "restricted identifier", "Import of module 'os' is blocked"]),
+            f"Unexpected error: {res_os['error']}"
+        )
+
 
     def test_research_blueprint_lifecycle(self):
         session_id = str(uuid.uuid4())
